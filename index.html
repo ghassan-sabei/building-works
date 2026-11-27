@@ -25,8 +25,8 @@
 
   main{padding:12px 12px 96px;max-width:760px;margin:0 auto}
   nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:5;background:#fff;border-top:1px solid var(--line);display:flex}
-  nav.tabs button{flex:1;border:0;background:none;padding:10px 4px 12px;color:var(--muted);
-    font-size:13px;display:flex;flex-direction:column;align-items:center;gap:3px}
+  nav.tabs button{flex:1;border:0;background:none;padding:10px 2px 12px;color:var(--muted);
+    font-size:12px;display:flex;flex-direction:column;align-items:center;gap:3px}
   nav.tabs button .ic{font-size:20px;line-height:1}
   nav.tabs button.on{color:var(--pri);font-weight:700}
 
@@ -104,10 +104,17 @@
   .flr span{color:var(--muted);font-size:20px}
   .seg{display:flex;background:#e8ecf2;border-radius:10px;padding:3px;margin-bottom:12px}
   .seg button{flex:1;border:0;background:none;padding:9px;border-radius:8px;font-weight:600;color:var(--muted);cursor:pointer}
+  .seg small{display:block;font-weight:400;font-size:11px}
   .seg4{flex-wrap:wrap}
   .seg4 button{padding:7px 1px;font-size:11.5px;line-height:1.3;flex:1 0 30%}
   .seg4 button small{display:block;font-weight:400;font-size:11px}
   .seg button.on{background:#fff;color:var(--pri);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .un{position:relative}
+  .nb{position:absolute;top:-7px;left:-7px;min-width:20px;height:20px;border-radius:10px;color:#fff;font-size:12px;font-style:normal;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+  .pgh .nb{position:static;margin-inline-start:4px}
+  .nb.r{background:var(--bad)} .nb.y{background:#d4a017;left:16px}
+  .note{cursor:pointer;border-inline-start:5px solid #ccc}
+  .note.st-open{border-inline-start-color:var(--bad)} .note.st-fixed{border-inline-start-color:#d4a017} .note.st-acc{border-inline-start-color:var(--ok)}
   .pgh{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .cnts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .cnts span{background:#f3f5f9;border-radius:8px;padding:4px 9px;font-size:13px;color:#333}
@@ -242,6 +249,8 @@
   </section>
 
   <!-- ===== الإعدادات ===== -->
+  <section id="tab-notes" class="hidden"><div id="notesBox"></div></section>
+
   <section id="tab-settings" class="hidden">
     <div class="card">
       <h2>اسم المشروع</h2>
@@ -297,6 +306,7 @@
   <button data-tab="day" class="on"><span class="ic">📋</span>الكشف اليومي</button>
   <button data-tab="progress"><span class="ic">📊</span>الإنجاز</button>
   <button data-tab="reports"><span class="ic">📄</span>التقارير</button>
+  <button data-tab="notes"><span class="ic">📝</span>الملاحظات</button>
   <button data-tab="settings"><span class="ic">⚙️</span>الإعدادات</button>
 </nav>
 
@@ -305,7 +315,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "2.9";
+const APP_VERSION = "3.0";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -337,6 +347,7 @@ function load(){
   S.trades.forEach(t=>{ if(!Array.isArray(t.stages)) t.stages=[]; t.sets=t.sets&&typeof t.sets==="object"?t.sets:{};
     ["cor","sh","bas","vil","roof"].forEach(k=>{ if(!Array.isArray(t.sets[k])) t.sets[k]=[]; }); });
   S.manual = S.manual && typeof S.manual==="object" ? S.manual : {};
+  S.notes = S.notes && typeof S.notes==="object" ? S.notes : {};
   S.buildings.forEach(b=>{ if(!Array.isArray(b.floors)) b.floors=[]; b.floors.forEach(f=>{ if(!Array.isArray(f.flats)) f.flats=[]; }); });
   fixJoinedFlats();
 }
@@ -461,7 +472,7 @@ function byBuilding(list){
 const sumM = l => l.reduce((s,e)=>s+(+e.m||0),0);
 const sumW = l => l.reduce((s,e)=>s+(+e.w||0),0);
 function stageLabel(e){ const t=trById(e.tr); if(!t) return ""; const st=stById(t,e.st); return t.name+(st?" · "+st.name:"")+(+e.qty>0?` · ${fmtQ(e.qty)} م²`:""); }
-function stageTag(e){ const l=stageLabel(e); return l?`<span class="tag2 ${e.dn&&e.st?"dn":""}">${esc(l)}${e.dn&&e.st?" ✓ منتهية":""}</span>`:""; }
+function stageTag(e){ const l=stageLabel(e); return (l?`<span class="tag2 ${e.dn&&e.st?"dn":""}">${esc(l)}${e.dn&&e.st?" ✓ منتهية":""}</span> `:"")+(e.nt&&S.notes[e.nt]?`<span class="tag2" style="background:#fdecea;color:var(--bad)">إصلاح ملاحظة استلام</span>`:""); }
 
 /* ---------- الأصناف والمراحل ونسبة الإنجاز ----------
    trade {id,name,stages:[{id,name,w}]}  (w = وزن المرحلة)
@@ -542,9 +553,9 @@ function unitTotal(dm,b,u,trs){ return avg(trs.map(t=>unitPct(dm,b,u,t))); }
 function renderFlatGrid(b,P,trs){
   return `<div class="card"><div class="muted">اضغط على الشقة لعرض نسبة إنجاز كل صنف فيها</div></div>`+
     floorsOf(b).slice().reverse().map(f=>{ const us=P.units.filter(u=>u.f===f);
-      return `<div class="card fcard"><div class="pgh"><b>${esc(fLabel(f))}</b></div>
+      return `<div class="card fcard"><div class="pgh"><b>${esc(fLabel(f))} ${noteBadge(notesAt(b,f,null))}</b></div>
         <div class="units">${us.map(u=>{ const p=unitTotal(P.dm,b,u,trs);
-          return `<button class="un fu ${pctCls(p)}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${esc(uName(u.x))}</b><span>${pctTxt(p)}</span></button>`; }).join("")}</div></div>`; }).join("");
+          return `<button class="un fu ${pctCls(p)}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${esc(uName(u.x))}</b><span>${pctTxt(p)}</span>${u.x?noteBadge(notesAt(b,f,u.x)):""}</button>`; }).join("")}</div></div>`; }).join("");
 }
 function renderFlatPage(b,P,trs,f,x){
   trs=trs.filter(t=>stagesFor(t,utype(f,x)).length);
@@ -620,8 +631,8 @@ function renderProgress(){
     <div class="pgh" style="margin-top:10px"><b>${esc(t.name)}</b><b class="big">${pctTxt(x.pct)}</b></div>${bar(x.pct)}
     ${FTYPES.filter(([ty])=>stagesFor(t,ty).length).map(([ty,nm])=>`<div class="muted" style="margin-top:6px"><b>${nm}:</b> ${stagesFor(t,ty).map(s=>`${esc(s.name)} ${+s.w||0}`).join(" · ")}</div>`).join("")}</div>`;
   h+=floorsOf(b).slice().reverse().map(f=>{ const us=units.filter(u=>u.f===f), ps=us.map(u=>unitPct(P.dm,b,u,t));
-    return `<div class="card fcard"><div class="pgh"><b>${esc(fLabel(f))}</b><span class="pc ${pctCls(avg(ps))}">${pctTxt(avg(ps))}</span></div>
-      <div class="units">${us.map((u,i)=>`<button class="un ${pctCls(ps[i])}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${u.x?esc(u.x.name):"الطابق"}</b><span>${pctTxt(ps[i])}</span></button>`).join("")}</div></div>`; }).join("");
+    return `<div class="card fcard"><div class="pgh"><b>${esc(fLabel(f))} ${noteBadge(notesAt(b,f,null))}</b><span class="pc ${pctCls(avg(ps))}">${pctTxt(avg(ps))}</span></div>
+      <div class="units">${us.map((u,i)=>`<button class="un ${pctCls(ps[i])}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${u.x?esc(u.x.name):"الطابق"}</b><span>${pctTxt(ps[i])}</span>${u.x?noteBadge(notesAt(b,f,u.x)):""}</button>`).join("")}</div></div>`; }).join("");
   box.innerHTML=h; hookB(); hookSeg();
   $("pgBack").onclick=()=>{ progT=null; renderProgress(); };
   box.querySelectorAll(".un").forEach(el=>el.onclick=()=>{ const f=flById(b,el.dataset.f); unitModal(b,f,el.dataset.x?f.flats.find(y=>y.id===el.dataset.x):null,t); });
@@ -656,16 +667,120 @@ function progRep(b,P){
   return el;
 }
 
+/* ---------- ملاحظات الاستلام ----------
+   note {id,date,eng,b,f,x,ff,fx,tr,text,st,fixDate,fixText,fixEid,accDate,t}
+   f/x = الطابق والوحدة (x فارغ = عام للطابق)؛ ff/fx = كتابة يدوية للبناية بدون طوابق مسجلة
+   st: open مفتوحة / fixed تم الإصلاح / acc مستلمة */
+const NST={open:["مفتوحة","🔴"],fixed:["تم الإصلاح","🟡"],acc:["مستلمة","🟢"]};
+function notePlace(n){ const b=bById(n.b), f=flById(b,n.f), x=f&&n.x?f.flats.find(y=>y.id===n.x):null;
+  const fl=f?fLabel(f):(n.ff?"ط"+n.ff:""), un=x?uName(x):(n.fx?flLbl(n.fx):"");
+  return [b?b.name:"",fl,un].filter(Boolean).join(" · "); }
+const notePlaceH = (n,skipB) => notePlace(n).split(" · ").slice(skipB?1:0).map(p=>`<bdi>${esc(p)}</bdi>`).join(" · ");
+const notesAt = (b,f,x) => Object.values(S.notes).filter(n=>n.b===b.id&&n.f===f.id&&(x?n.x===x.id:!n.x)&&n.st!=="acc");
+function noteBadge(list){ const o=list.filter(n=>n.st==="open").length, fx=list.filter(n=>n.st==="fixed").length;
+  return (o?`<i class="nb r">${o}</i>`:"")+(fx?`<i class="nb y">${fx}</i>`:""); }
+
+let noteB="", noteSt="open", noteQ="";
+function noteList(){
+  return Object.values(S.notes).filter(n=>(!noteB||n.b===noteB)&&(noteSt==="all"||n.st===noteSt)&&
+    (!noteQ||(n.text+" "+(n.eng||"")+" "+notePlace(n)).includes(noteQ)))
+    .sort((a,c)=>a.date<c.date?1:a.date>c.date?-1:(c.t||0)-(a.t||0));
+}
+function renderNotes(){
+  const box=$("notesBox"), all=Object.values(S.notes).filter(n=>!noteB||n.b===noteB);
+  const cnt=k=>k==="all"?all.length:all.filter(n=>n.st===k).length;
+  const list=noteList();
+  box.innerHTML=`<div class="card"><div class="chips" id="nB"><button data-id="" class="${noteB?"":"on"}">جميع البنايات</button>${S.buildings.map(b=>`<button data-id="${esc(b.id)}" class="${b.id===noteB?"on":""}">${esc(b.name)}</button>`).join("")}</div></div>
+    <div class="seg" id="nS">${[["open","مفتوحة"],["fixed","تم الإصلاح"],["acc","مستلمة"],["all","الكل"]].map(([k,nm])=>`<button data-k="${k}" class="${noteSt===k?"on":""}">${nm}<small>${cnt(k)}</small></button>`).join("")}</div>
+    <div class="row" style="margin-bottom:12px"><input type="text" id="nQ" class="grow" placeholder="بحث: اسم المهندس أو نص الملاحظة" value="${esc(noteQ)}">
+      <button class="btn sec sm" id="nPv">🔍</button><button class="btn ok sm" id="nSh">📤 PDF</button></div>`+
+    (list.length?list.map(n=>{ const t=trById(n.tr);
+      return `<div class="card note st-${n.st}" data-id="${n.id}"><div class="pgh"><b>${NST[n.st][1]} ${notePlaceH(n)}</b><span class="muted">${dmy(n.date)}</span></div>
+        <div class="wk" style="margin-top:6px">${esc(n.text)}</div>
+        <div class="muted" style="margin-top:6px">${t?`<span class="tag2">${esc(t.name)}</span> `:""}المهندس: ${esc(n.eng||"—")} · ${NST[n.st][0]}${n.fixDate?` · الإصلاح ${dmy(n.fixDate)}`:""}${n.accDate?` · الاستلام ${dmy(n.accDate)}`:""}</div></div>`; }).join("")
+     :`<div class="card empty">لا توجد ملاحظات ${noteSt==="all"?"":"بحالة \""+NST[noteSt][0]+"\""}.</div>`);
+  box.querySelectorAll("#nB button").forEach(x=>x.onclick=()=>{ noteB=x.dataset.id; renderNotes(); });
+  box.querySelectorAll("#nS button").forEach(x=>x.onclick=()=>{ noteSt=x.dataset.k; renderNotes(); });
+  $("nQ").oninput=()=>{ noteQ=$("nQ").value.trim(); const c=$("nQ").selectionStart; renderNotes(); $("nQ").focus(); $("nQ").setSelectionRange(c,c); };
+  box.querySelectorAll(".note").forEach(el=>el.onclick=()=>openNote(S.notes[el.dataset.id]));
+  $("nPv").onclick=()=>openPreview(notesRep(),notesName());
+  $("nSh").onclick=()=>sharePdf(null,notesName(),notesRep());
+}
+const notesName = () => `notes-${noteB?bName(noteB).replace(/[^\w\-]/g,""):"all"}-${today()}.pdf`;
+function notesRep(){
+  const list=noteList(), el=document.createElement("div"); el.className="rep";
+  el.innerHTML=`<h2>ملاحظات الاستلام${noteB?" — بناية <bdi>"+esc(bName(noteB))+"</bdi>":""}</h2>
+    <div class="sub">${S.project?esc(S.project)+" — ":""}${noteSt==="all"?"جميع الحالات":"الحالة: "+NST[noteSt][0]} — ${dayName(today())} ${dmy(today())}</div>`+
+    (list.length?`<table><thead><tr><th style="width:24px">#</th><th style="width:70px">التاريخ</th><th style="width:110px">المكان</th><th style="width:70px">المهندس</th><th>الملاحظة</th><th style="width:90px">الحالة</th></tr></thead><tbody>${list.map((n,i)=>{ const t=trById(n.tr);
+      return `<tr><td>${i+1}</td><td>${dmy(n.date)}</td><td>${notePlaceH(n)}</td><td>${esc(n.eng||"—")}</td><td class="w">${t?`<b>${esc(t.name)}:</b> `:""}${esc(n.text)}${n.fixText?`<br><small>الإصلاح: ${esc(n.fixText)}</small>`:""}</td><td class="${n.st==="acc"?"full":n.st==="fixed"?"part":""}">${NST[n.st][0]}${n.fixDate?`<br><small>${dmy(n.fixDate)}</small>`:""}</td></tr>`; }).join("")}</tbody></table>`
+     :`<div class="empty">لا توجد ملاحظات</div>`)+`<div class="sign"><div>المشرف</div><div>المهندس</div></div>`;
+  return el;
+}
+
+function openNote(n){
+  const isNew=!n, vis=S.buildings.filter(b=>!b.hidden||(n&&n.b===b.id));
+  n = n ? {...n} : {date:today(), eng:"", b:noteB||(vis[0]&&vis[0].id), f:"", x:"", ff:"", fx:"", tr:"", text:"", st:"open"};
+  const engs=[...new Set(Object.values(S.notes).map(z=>z.eng).filter(Boolean))];
+  modal(`<h3>${isNew?"ملاحظة جديدة":"ملاحظة"} ${isNew?"":NST[n.st][1]+" "+NST[n.st][0]}</h3>
+    <div class="two"><div class="field"><label>التاريخ</label><input type="date" id="nD" value="${n.date}"></div>
+      <div class="field"><label>اسم المهندس</label><input type="text" id="nE" list="nEL" value="${esc(n.eng||"")}"><datalist id="nEL">${engs.map(e=>`<option value="${esc(e)}">`).join("")}</datalist></div></div>
+    <div class="field"><label>البناية</label><div class="chips" id="nmB">${vis.map(b=>`<button data-id="${esc(b.id)}" class="${b.id===n.b?"on":""}">${esc(b.name)}</button>`).join("")}</div></div>
+    <div id="nmP"></div>
+    ${S.trades.length?`<div class="field"><label>الصنف <small>(اختياري)</small></label><div class="chips" id="nmT"><button data-t="" class="${n.tr?"":"on"}">بدون</button>${S.trades.map(t=>`<button data-t="${t.id}" class="${t.id===n.tr?"on":""}">${esc(t.name)}</button>`).join("")}</div></div>`:""}
+    <div class="field"><label>نص الملاحظة</label><textarea id="nT" placeholder="مثال: بوكس الصالة مائل">${esc(n.text)}</textarea></div>
+    ${n.fixText||n.fixDate?`<div class="preview">🟡 الإصلاح${n.fixDate?" "+dmy(n.fixDate):""}: ${esc(n.fixText||"")}</div>`:""}
+    <div class="err" id="nErr"></div>
+    <div class="actions"><button class="btn ok" id="nSave">حفظ</button><button class="btn sec" id="nX">إلغاء</button></div>
+    ${isNew?"":`<div class="sect">تغيير الحالة</div><div class="actions">
+      ${n.st!=="fixed"?`<button class="btn sm" style="background:#b8860b" id="nFix">🟡 تم الإصلاح</button>`:""}
+      ${n.st!=="acc"?`<button class="btn ok sm" id="nAcc">🟢 مستلمة</button>`:""}
+      ${n.st!=="open"?`<button class="btn bad sm" id="nOpen">🔴 إعادة فتح</button>`:""}</div>
+      <div class="actions"><button class="btn bad" id="nDel">حذف الملاحظة</button></div>`}`);
+  let bsel=n.b, fsel=n.f, xsel=n.x, tsel=n.tr, ff=n.ff||"", fx=n.fx||"";
+  function place(){ const b=bById(bsel), fs=floorsOf(b), box=$("nmP");
+    if(!fs.length){ box.innerHTML=`<div class="two"><div class="field"><label>الطابق</label><input type="text" id="nFF" value="${esc(ff)}"></div><div class="field"><label>الشقة</label><input type="text" id="nFX" value="${esc(fx)}" placeholder="اختياري"></div></div>`;
+      $("nFF").oninput=()=>ff=$("nFF").value; $("nFX").oninput=()=>fx=$("nFX").value; return; }
+    if(!fs.some(f=>f.id===fsel)) fsel=""; const f=flById(b,fsel), fl=f?flatsOf(f):[]; if(!fl.some(x=>x.id===xsel)) xsel="";
+    box.innerHTML=`<div class="field"><label>الطابق</label><div class="chips" id="nmF">${fs.map(f=>`<button data-id="${f.id}" class="${f.id===fsel?"on":""}">${esc(fShort(f))}</button>`).join("")}</div></div>`+
+      (fl.length?`<div class="field"><label>الوحدة</label><div class="chips" id="nmX"><button data-x="" class="${xsel?"":"on"}">عام للطابق</button>${fl.map(x=>`<button data-x="${x.id}" class="${x.id===xsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`:"");
+    box.querySelectorAll("#nmF button").forEach(el=>el.onclick=()=>{ fsel=el.dataset.id; xsel=""; place(); });
+    box.querySelectorAll("#nmX button").forEach(el=>el.onclick=()=>{ xsel=el.dataset.x; place(); });
+  }
+  place();
+  document.querySelectorAll("#nmB button").forEach(el=>el.onclick=()=>{ if(bsel!==el.dataset.id){ bsel=el.dataset.id; fsel=""; xsel=""; }
+    document.querySelectorAll("#nmB button").forEach(y=>y.classList.toggle("on",y===el)); place(); });
+  document.querySelectorAll("#nmT button").forEach(el=>el.onclick=()=>{ tsel=el.dataset.t; document.querySelectorAll("#nmT button").forEach(y=>y.classList.toggle("on",y===el)); });
+  const collect=()=>{ const text=$("nT").value.trim(), hasF=floorsOf(bById(bsel)).length>0;
+    if(!bsel){ $("nErr").textContent="يُرجى اختيار البناية"; return null; }
+    if(hasF?!fsel:!nd(ff).trim()){ $("nErr").textContent="يُرجى اختيار الطابق"; return null; }
+    if(!text){ $("nErr").textContent="يُرجى كتابة نص الملاحظة"; return null; }
+    const id=n.id||uid(), rec={...n, id, date:$("nD").value||today(), eng:$("nE").value.trim(), b:bsel, tr:tsel, text, t:n.t||Date.now()};
+    if(hasF){ rec.f=fsel; rec.x=xsel; delete rec.ff; delete rec.fx; } else { rec.ff=nd(ff).trim(); rec.fx=nd(fx).trim(); rec.f=""; rec.x=""; }
+    return rec; };
+  const put=(rec,msg)=>{ S.notes[rec.id]=rec; save(); closeModal(); renderNotes(); toast(msg||"تم الحفظ ✓"); };
+  $("nX").onclick=closeModal;
+  $("nSave").onclick=()=>{ const r=collect(); if(r) put(r); };
+  if(!isNew){
+    if($("nFix")) $("nFix").onclick=()=>{ const r=collect(); if(!r) return; const how=prompt("ما الذي تم إصلاحه؟ (اختياري)",r.fixText||""); if(how===null) return;
+      r.st="fixed"; r.fixDate=today(); r.fixText=how.trim(); put(r,"تم تسجيل الإصلاح ✓"); };
+    if($("nAcc")) $("nAcc").onclick=()=>{ const r=collect(); if(!r) return; r.st="acc"; r.accDate=today(); put(r,"تم الاستلام ✓"); };
+    if($("nOpen")) $("nOpen").onclick=()=>{ const r=collect(); if(!r) return; r.st="open"; delete r.accDate; put(r,"تمت إعادة الفتح"); };
+    $("nDel").onclick=()=>{ if(!confirm("هل تريد حذف هذه الملاحظة؟")) return; delete S.notes[n.id]; save(); closeModal(); renderNotes(); toast("تم الحذف"); };
+  }
+}
+
 /* ---------- تبويبات ---------- */
 let tab="day";
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
   tab=b.dataset.tab;
   document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.toggle("on",x===b));
-  ["day","progress","reports","settings"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==tab));
-  $("fabAdd").classList.toggle("hidden",tab!=="day");
+  ["day","progress","reports","notes","settings"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==tab));
+  $("fabAdd").classList.toggle("hidden",tab!=="day"&&tab!=="notes");
+  $("fabAdd").textContent=tab==="notes"?"＋ ملاحظة":"＋ إضافة عمل";
   if(tab==="reports") renderReport();
   if(tab==="progress"){ progT=null; progU=null; renderProgress(); }
   if(tab==="settings") renderSettings();
+  if(tab==="notes") renderNotes();
   window.scrollTo(0,0);
 });
 
@@ -740,6 +855,7 @@ function openEntry(e){
     <div class="field"><label>البناية</label><div class="chips" id="eB">${vis.map(b=>`<button data-id="${esc(b.id)}" class="${b.id===e.b?"on":""}">${esc(b.name)}</button>`).join("")}</div>
       ${vis.length?"":`<div class="err">لا توجد بنايات. يمكن إضافتها من الإعدادات.</div>`}</div>
     <div id="ePlace"></div>
+    <div id="eNotes"></div>
     <div id="eStage"></div>
     <div class="field"><label>وصف العمل <small id="eWorkHint"></small></label><textarea id="eWork" placeholder="مثال: تعليق شبكة PPR">${esc(e.work||"")}</textarea>
       <div class="sugg" id="eSugg"></div></div>
@@ -805,6 +921,17 @@ function openEntry(e){
       if(!t) ftsel=ftsel.filter(id=>!f.flats.some(y=>y.id===id));
       else ftsel=ftsel.includes(t)?ftsel.filter(y=>y!==t):ftsel.concat(t);
       place(); stagePlace(); prev(); });
+    notesPick();
+  }
+  // إصلاح ملاحظة استلام مفتوحة على الطوابق المختارة
+  let ntsel=e.nt||"";
+  function notesPick(){
+    const box=$("eNotes"); if(!box) return;
+    const list=hasFloors()?Object.values(S.notes).filter(n=>n.b===bsel&&fsel.includes(n.f)&&(n.st==="open"||n.id===ntsel)&&(!n.x||!ftsel.length||ftsel.includes(n.x))):[];
+    if(!list.some(n=>n.id===ntsel)) ntsel="";
+    box.innerHTML=list.length?`<div class="field"><label>🔴 ملاحظات استلام مفتوحة هنا <small>(اختر إذا كان هذا العمل إصلاحاً لملاحظة)</small></label>
+      <div class="chips" id="eNt">${list.map(n=>`<button data-n="${n.id}" class="${n.id===ntsel?"on":""}" style="max-width:100%;white-space:normal;text-align:right">${notePlaceH(n,true)}: ${esc(n.text)}</button>`).join("")}</div></div>`:"";
+    box.querySelectorAll("#eNt button").forEach(x=>x.onclick=()=>{ ntsel=ntsel===x.dataset.n?"":x.dataset.n; notesPick(); });
   }
   function cur(){
     if(hasFloors()){
@@ -834,6 +961,7 @@ function openEntry(e){
     const id=e.id||uid(), rec={id, date:isNew?curDate:e.date, b:bsel, work, t:e.t||Date.now()};
     if(trsel){ rec.tr=trsel; rec.st=stsel; rec.dn=!!(stsel&&dnsel); if(stO&&+stO.q>0&&q>0) rec.qty=q; }
     if(c.fl){ rec.fl=c.fl; rec.fts=c.fts; } else { rec.f=c.f; rec.flat=c.flat; }
+    if(ntsel){ rec.nt=ntsel; const nn=S.notes[ntsel]; if(nn&&nn.st==="open"){ nn.st="fixed"; nn.fixDate=rec.date; nn.fixText=[stageLabel(rec),work].filter(Boolean).join(" — ")||"من الكشف اليومي"; nn.fixEid=id; } }
     S.entries[id]=rec;
     if(!save()) return;
     lastPick={b:bsel, fl:c.fl||[], f:c.f||"", tr:trsel};
@@ -846,7 +974,7 @@ function openEntry(e){
   if(!isNew) $("eDel").onclick=()=>{ if(confirm("هل تريد حذف هذا العمل؟")){ delete S.entries[e.id]; save(); closeModal(); renderDay(); toast("تم الحذف"); } };
   $("eCancel").onclick=closeModal;
 }
-$("fabAdd").onclick=()=>openEntry(null);
+$("fabAdd").onclick=()=>tab==="notes"?openNote(null):openEntry(null);
 
 /* نسخ شغل يوم سابق (للشغل المستمر) */
 function openCopy(){
@@ -859,7 +987,7 @@ function openCopy(){
   $("cpX").onclick=closeModal;
   $("cpGo").onclick=()=>{
     const src=sortEntries(entriesOf($("cpD").value)); let t=Date.now();
-    src.forEach(e=>{ const id=uid(); S.entries[id]={...e,id,date:curDate,t:t++,dn:false}; delete S.entries[id].qty; });
+    src.forEach(e=>{ const id=uid(); S.entries[id]={...e,id,date:curDate,t:t++,dn:false}; delete S.entries[id].qty; delete S.entries[id].nt; });
     save(); closeModal(); renderDay(); toast(`تم نسخ ${src.length} عمل`);
   };
 }
@@ -1231,7 +1359,7 @@ $("tAdd").onclick=()=>{ const nm=$("tNew").value.trim(); if(!nm) return;
   const t={id:"t"+uid(),name:nm,stages:[],sets:{cor:[],sh:[],bas:[],vil:[],roof:[]}}; S.trades.push(t); save(); $("tNew").value=""; renderTrades(); tradeModal(t); };
 
 /* نسخة احتياطية */
-function backupJson(){ return JSON.stringify({app:"building-works",v:1,at:new Date().toISOString(),data:{project:S.project,buildings:S.buildings,entries:S.entries,trades:S.trades,manual:S.manual}}); }
+function backupJson(){ return JSON.stringify({app:"building-works",v:1,at:new Date().toISOString(),data:{project:S.project,buildings:S.buildings,entries:S.entries,trades:S.trades,manual:S.manual,notes:S.notes}}); }
 const b64utf8 = s => btoa(unescape(encodeURIComponent(s)));
 function bkName(){ return `building-works-backup-${today()}.json`; }
 async function backupShare(){
@@ -1268,6 +1396,7 @@ $("bkFile").onchange=async()=>{
     FTYPES.forEach(([ty])=>{ const src=ty==="std"?(t.stages||[]):((t.sets||{})[ty]||[]), dst=ty==="std"?o.stages:(o.sets[ty]=o.sets[ty]||[]);
       src.forEach(st=>{ if(!dst.some(y=>y.id===st.id)) dst.push(st); }); }); });
   Object.assign(S.manual, j.data.manual||{});
+  Object.values(j.data.notes||{}).forEach(n=>{ if(n&&n.id&&!S.notes[n.id]) S.notes[n.id]=n; });
   save(); linkOld(); renderSettings(); renderDay(); toast(`تمت إضافة ${neu} عمل ✓`);
 };
 $("chkUpd").onclick=()=>{

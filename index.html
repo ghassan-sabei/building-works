@@ -108,6 +108,8 @@
   .seg4 button small{display:block;font-weight:400;font-size:11px}
   .seg button.on{background:#fff;color:var(--pri);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .pgh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .cnts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .cnts span{background:#f3f5f9;border-radius:8px;padding:4px 9px;font-size:13px;color:#333}
   .pgh .big{font-size:22px;color:var(--pri)}
   .pbar{height:10px;background:#e8ecf2;border-radius:6px;overflow:hidden;margin-top:6px}
   .pbar i{display:block;height:100%;background:var(--acc)}
@@ -300,7 +302,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "2.5";
+const APP_VERSION = "2.6";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -468,6 +470,7 @@ const trById = id => S.trades.find(t=>t.id===id);
 /* لكل صنف مراحل حسب نوع الطابق: الشقق والأرضي (stages) / السرداب / فيلا السطح / السطح (sets)
    نوع بدون مراحل = الصنف ما بينحسب فيه */
 const FTYPES=[["std","الشقق والأرضي"],["cor","الممر"],["bas","السرداب"],["vil","فيلا السطح"],["roof","السطح"]];
+const CNT={std:"شقق",cor:"ممرات",bas:"سرداب",vil:"فيلات",roof:"السطح"};
 const ftName = ty => (FTYPES.find(x=>x[0]===ty)||[,""])[1];
 const ftype = f => f&&(f.k==="bas"||f.k==="vil"||f.k==="roof") ? f.k : "std";
 // الممر: وحدة بالطابق إلها مراحل الممر (بيتعرّف من اسمه "ممر" أو من الإعدادات)
@@ -506,7 +509,10 @@ const pctTxt = p => p==null ? "—" : (p>=99.95?100:p<=0?0:Math.max(1,Math.floor
 const pctCls = p => p==null?"na":p>=99.95?"full":p>0?"part":"zero";
 function bldProgress(b){
   const dm=doneMap(b), units=unitsOf(b), trs=S.trades.filter(t=>trWeight(t)>0);
-  const per=trs.map(t=>{ const ps=units.map(u=>unitPct(dm,b,u,t)); return {t, pct:avg(ps), full:ps.filter(p=>p!=null&&p>=99.95).length, n:ps.filter(p=>p!=null).length}; });
+  const per=trs.map(t=>{ const ps=units.map(u=>unitPct(dm,b,u,t)), by={};
+    // كم وحدة خلصت 100% من كل نوع: شقق / ممرات / سرداب / فيلات / السطح
+    units.forEach((u,i)=>{ if(ps[i]==null) return; const ty=utype(u.f,u.x); by[ty]=by[ty]||{full:0,n:0}; by[ty].n++; if(ps[i]>=99.95) by[ty].full++; });
+    return {t, pct:avg(ps), by}; });
   return {dm, units, per, total:avg(per.map(x=>x.pct))};
 }
 
@@ -577,10 +583,11 @@ function renderProgress(){
   }
   if(!t){
     h+=`<div class="card"><div class="pgh"><b>بناية <bdi>${esc(b.name)}</bdi> — الإنجاز الكلي</b><b class="big">${pctTxt(P.total)}</b></div>${bar(P.total)}
-      <div class="muted" style="margin-top:6px">${units.length} شقة/وحدة · ${trs.length} أصناف</div>
+      <div class="muted" style="margin-top:6px">${FTYPES.map(([ty])=>{ const n=units.filter(u=>utype(u.f,u.x)===ty).length; return n?`${CNT[ty]} ${n}`:""; }).filter(Boolean).join(" · ")} · ${trs.length} أصناف</div>
       <div class="actions" style="margin-top:10px"><button class="btn sec sm" id="pgPv">🔍 معاينة</button><button class="btn ok sm" id="pgSh">📤 إرسال PDF</button></div></div>`+
       P.per.map(x=>`<div class="card tcard" data-t="${x.t.id}"><div class="pgh"><b>${esc(x.t.name)}</b><b>${pctTxt(x.pct)}</b></div>${bar(x.pct)}
-        <div class="muted" style="margin-top:6px">خلصت بـ ${x.full} من ${x.n} · اضغط للتفاصيل</div></div>`).join("");
+        <div class="cnts">${FTYPES.filter(([ty])=>x.by[ty]).map(([ty])=>`<span><b>${CNT[ty]}</b> خلصت ${x.by[ty].full} من ${x.by[ty].n}</span>`).join("")}</div>
+        <div class="muted" style="margin-top:4px">اضغط للتفاصيل</div></div>`).join("");
     box.innerHTML=h; hookB(); hookSeg();
     box.querySelectorAll(".tcard").forEach(c=>c.onclick=()=>{ progT=c.dataset.t; renderProgress(); window.scrollTo(0,0); });
     $("pgPv").onclick=()=>openPreview(progRep(b,P),progName(b));
@@ -618,13 +625,13 @@ function unitModal(b,f,x,t){
 }
 const progName = b => `progress-${b.name.replace(/[^\w\-]/g,"")}-${today()}.pdf`;
 function progRep(b,P){
-  const fs=floorsOf(b), per=P.per;
+  const fs=floorsOf(b), per=P.per, tys=FTYPES.map(z=>z[0]).filter(ty=>per.some(x=>x.by[ty]));
   const rows=fs.map(f=>{ const us=P.units.filter(u=>u.f===f);
     return `<tr><td>${esc(fLabel(f))}</td><td>${us.filter(u=>u.x&&!isCor(u.x)).length||"—"}</td>${per.map(x=>{ const p=avg(us.map(u=>unitPct(P.dm,b,u,x.t))); return `<td class="${pctCls(p)}">${pctTxt(p)}</td>`; }).join("")}<td><b>${pctTxt(avg(per.map(x=>avg(us.map(u=>unitPct(P.dm,b,u,x.t))))))}</b></td></tr>`; }).join("");
   const el=document.createElement("div"); el.className="rep";
   el.innerHTML=`<h2>نسبة الإنجاز — بناية <bdi>${esc(b.name)}</bdi></h2><div class="sub">${S.project?esc(S.project)+" — ":""}${dayName(today())} ${dmy(today())}</div>
-    <table><thead><tr><th>الصنف</th><th>الإنجاز</th><th>خلصت</th></tr></thead><tbody>${per.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="${pctCls(x.pct)}"><b>${pctTxt(x.pct)}</b></td><td>${x.full} من ${x.n}</td></tr>`).join("")}
-    <tr class="tot"><td>الإنجاز الكلي</td><td>${pctTxt(P.total)}</td><td></td></tr></tbody></table>
+    <table><thead><tr><th>الصنف</th><th>الإنجاز</th>${tys.map(ty=>`<th>${CNT[ty]} خلصت</th>`).join("")}</tr></thead><tbody>${per.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="${pctCls(x.pct)}"><b>${pctTxt(x.pct)}</b></td>${tys.map(ty=>`<td>${x.by[ty]?`${x.by[ty].full} من ${x.by[ty].n}`:"—"}</td>`).join("")}</tr>`).join("")}
+    <tr class="tot"><td>الإنجاز الكلي</td><td>${pctTxt(P.total)}</td>${tys.map(()=>"<td></td>").join("")}</tr></tbody></table>
     <h4>حسب الطابق</h4>
     <table class="pg"><thead><tr><th>الطابق</th><th>شقق</th>${per.map(x=>`<th>${esc(x.t.name)}</th>`).join("")}<th>الكلي</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="sign"><div>المشرف</div><div>المهندس</div></div>`;

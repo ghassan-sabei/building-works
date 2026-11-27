@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f5f4a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>كشف أعمال البنايات</title>
+<style>
+  :root{
+    --bg:#f2f4f7; --card:#fff; --ink:#1d2330; --muted:#6b7280; --line:#e3e6eb;
+    --pri:#1f5f4a; --pri2:#2a7a60; --ok:#1e8e4e; --warn:#b45309; --bad:#b42318; --acc:#f0b43c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;font-size:16px}
+  button,input,select,textarea{font:inherit}
+  .hidden{display:none!important}
+
+  header{position:sticky;top:0;z-index:5;background:var(--pri);color:#fff;
+    padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  header h1{font-size:18px;margin:0}
+  header .proj{font-size:12px;opacity:.85;margin-top:2px}
+
+  main{padding:12px 12px 96px;max-width:760px;margin:0 auto}
+  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:5;background:#fff;border-top:1px solid var(--line);display:flex}
+  nav.tabs button{flex:1;border:0;background:none;padding:10px 4px 12px;color:var(--muted);
+    font-size:13px;display:flex;flex-direction:column;align-items:center;gap:3px}
+  nav.tabs button .ic{font-size:20px;line-height:1}
+  nav.tabs button.on{color:var(--pri);font-weight:700}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .card h2{font-size:16px;margin:0 0 10px}
+  .row{display:flex;gap:8px;align-items:center}
+  .row > *{min-width:0}
+  .grow{flex:1}
+  input[type=text],select,textarea,input[type=date]{width:100%;padding:11px 12px;border:1px solid #cfd4dc;border-radius:9px;background:#fff;outline:none}
+  textarea{min-height:76px;resize:vertical;line-height:1.5}
+  input:focus,select:focus,textarea:focus{border-color:var(--pri2)}
+  .btn{border:0;border-radius:9px;padding:11px 16px;background:var(--pri);color:#fff;font-weight:600;cursor:pointer;white-space:nowrap}
+  .btn.sec{background:#e8ecf2;color:var(--ink)}
+  .btn.ok{background:var(--ok)}
+  .btn.bad{background:var(--bad)}
+  .btn.sm{padding:7px 11px;font-size:14px}
+  .btn:disabled{opacity:.5}
+  .muted{color:var(--muted);font-size:14px}
+  .err{color:var(--bad);font-size:14px;min-height:18px;margin-top:4px}
+
+  .datebar{display:flex;align-items:center;gap:6px}
+  .datebar input{flex:1;text-align:center;font-weight:700}
+  .datebar .btn{padding:10px 14px;font-size:18px}
+  .daylabel{text-align:center;color:var(--muted);font-size:13px;margin-top:6px}
+  .stats{display:flex;gap:6px;margin-top:10px}
+  .stat{flex:1;background:#f3f5f9;border-radius:9px;padding:7px;text-align:center}
+  .stat b{display:block;font-size:18px}
+  .stat span{font-size:12px;color:var(--muted)}
+
+  .group{margin-bottom:12px}
+  .group-h{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#dcebe5;border-radius:10px 10px 0 0;font-weight:700}
+  .group-h .count{font-weight:400;font-size:13px;color:#3b4a44}
+  .list{background:#fff;border:1px solid var(--line);border-top:0;border-radius:0 0 10px 10px}
+  .ent{display:flex;gap:10px;padding:10px 12px;border-top:1px solid var(--line);cursor:pointer}
+  .ent:first-child{border-top:0}
+  .ent .loc{flex:0 0 auto;min-width:64px;text-align:center;background:#f3f5f9;border-radius:9px;padding:5px 6px;font-weight:700;font-size:14px;line-height:1.35}
+  .ent .loc small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+  .ent .body{flex:1;min-width:0}
+  .ent .wk{line-height:1.45;word-wrap:break-word}
+  .ent .crew{display:inline-block;margin-top:4px;font-size:12px;padding:2px 8px;border-radius:9px;background:#fdf0d5;color:#8a5a06}
+
+  .fab{position:fixed;left:16px;bottom:78px;z-index:6;border:0;border-radius:28px;background:var(--ok);
+    color:#fff;font-weight:700;padding:14px 20px;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  .empty{text-align:center;color:var(--muted);padding:26px 10px;line-height:1.8}
+  .warnbar{display:flex;align-items:center;gap:8px;justify-content:space-between;background:#fff4d6;color:var(--warn);border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:14px}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+  .modal{background:#fff;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px;max-height:92vh;overflow:auto}
+  @media(min-width:600px){.modal-bg{align-items:center}.modal{border-radius:16px}}
+  .modal h3{margin:0 0 14px;font-size:17px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:14px;color:var(--muted);margin-bottom:5px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .actions .btn{flex:1}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chips button{border:1px solid #cfd4dc;background:#fff;border-radius:18px;padding:7px 14px;font-weight:600;cursor:pointer}
+  .chips button.on{background:var(--pri);border-color:var(--pri);color:#fff}
+  .sugg{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+  .sugg button{border:0;background:#eef1f6;border-radius:8px;padding:5px 9px;font-size:13px;color:#333;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .step{display:flex;align-items:center;gap:4px;direction:ltr}
+  .step button{width:42px;height:42px;border:0;border-radius:9px;background:#e8ecf2;font-size:22px;font-weight:700;cursor:pointer}
+  .step input{text-align:center;font-weight:700;font-size:18px;padding:8px 4px!important}
+  .preview{background:#f3f5f9;border-radius:9px;padding:9px 11px;font-size:14px;color:#333;margin-bottom:12px;line-height:1.5}
+
+  .bl{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line)}
+  .bl:first-child{border-top:0}
+  .bl .nm{flex:1;font-weight:700}
+  .bl.off .nm{color:var(--muted);font-weight:400;text-decoration:line-through}
+
+  .rform{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .rform .full{grid-column:1/-1}
+  .rform label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px}
+  #printArea{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;overflow-x:auto}
+  .rep h2{font-size:18px;text-align:center;margin:0 0 2px}
+  .rep .sub{text-align:center;color:#444;font-size:13px;margin-bottom:10px}
+  .rep h3{font-size:15px;margin:14px 0 6px;padding:5px 8px;background:#dcebe5;border-radius:6px;display:flex;justify-content:space-between}
+  .rep h3 span{font-weight:400;font-size:13px}
+  .rep h4{font-size:14px;margin:10px 0 4px}
+  .rep table{width:100%;border-collapse:collapse;font-size:13px}
+  .rep th,.rep td{border:1px solid #9aa3b2;padding:5px 4px;text-align:center}
+  .rep th{background:#eef1f6}
+  .rep td.w{text-align:right;line-height:1.45}
+  .rep tr.grp td{background:#f3f5f9;font-weight:700;text-align:right}
+  .rep tr.tot td{background:#eef1f6;font-weight:700}
+  .rep .sign{display:flex;justify-content:space-around;margin-top:30px;font-size:14px}
+  .rep .sign div{border-top:1px solid #333;padding-top:4px;min-width:140px;text-align:center}
+  @media print{
+    @page{size:A4 portrait;margin:10mm}
+    body{background:#fff}
+    header,nav,.fab,#rControls,#toast,#modalRoot{display:none!important}
+    main{padding:0;max-width:none}
+    section{display:none!important}
+    #tab-reports{display:block!important}
+    #printArea{border:0;padding:0;overflow:visible}
+    .rep table{font-size:11px}
+    .rep tr{page-break-inside:avoid}
+  }
+  #pv{position:fixed;inset:0;z-index:40;background:#525659;display:flex;flex-direction:column}
+  #pv .bar{display:flex;gap:6px;align-items:center;padding:8px;background:#2b2e31;color:#fff}
+  #pv .bar .btn{padding:8px 12px}
+  #pv .bar .z{min-width:52px;text-align:center;font-size:14px}
+  #pv .pages{flex:1;overflow:auto;padding:12px;touch-action:pan-x pan-y}
+  #pv .pages img{display:block;margin:0 auto 12px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  #pv .pn{color:#ddd;text-align:center;font-size:12px;margin:-8px 0 12px}
+  #busy{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+  #toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#222;color:#fff;
+    padding:9px 16px;border-radius:9px;font-size:14px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none}
+  #toast.show{opacity:.92}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>كشف أعمال البنايات</h1>
+    <div class="proj" id="hProj"></div>
+  </div>
+</header>
+
+<main>
+  <!-- ===== الكشف اليومي ===== -->
+  <section id="tab-day">
+    <div id="backupWarn"></div>
+    <div class="card">
+      <div class="datebar">
+        <button class="btn sec" id="dPrev" title="اليوم السابق">▶</button>
+        <input type="date" id="dDate">
+        <button class="btn sec" id="dNext" title="اليوم التالي">◀</button>
+      </div>
+      <div class="daylabel" id="dLabel"></div>
+      <div class="stats">
+        <div class="stat"><b id="sLines">0</b><span>أعمال</span></div>
+        <div class="stat"><b id="sMasters">0</b><span>خلفات</span></div>
+        <div class="stat"><b id="sWorkers">0</b><span>عمال</span></div>
+      </div>
+    </div>
+    <div id="dayList"></div>
+  </section>
+
+  <!-- ===== التقارير ===== -->
+  <section id="tab-reports" class="hidden">
+    <div class="card" id="rControls">
+      <div class="rform">
+        <div class="full">
+          <label>نوع التقرير</label>
+          <select id="rType">
+            <option value="day">كشف يومي</option>
+            <option value="range">تقرير لفترة (من – إلى)</option>
+          </select>
+        </div>
+        <div class="full" id="rDayBox"><label>التاريخ</label><input type="date" id="rDate"></div>
+        <div id="rFromBox" class="hidden"><label>من تاريخ</label><input type="date" id="rFrom"></div>
+        <div id="rToBox" class="hidden"><label>إلى تاريخ</label><input type="date" id="rTo"></div>
+        <div class="full"><label>البناية</label><select id="rBld"></select></div>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn sec" id="rPreview">🔍 معاينة</button>
+        <button class="btn ok" id="rShare">📤 إرسال PDF</button>
+        <button class="btn sec" id="rPrint">🖨️ طباعة</button>
+      </div>
+    </div>
+    <div id="printArea"></div>
+  </section>
+
+  <!-- ===== الإعدادات ===== -->
+  <section id="tab-settings" class="hidden">
+    <div class="card">
+      <h2>اسم المشروع</h2>
+      <div class="row">
+        <input type="text" id="setProj" class="grow" placeholder="مثال: مشروع الأبراج السكنية">
+        <button class="btn" id="setProjSave">حفظ</button>
+      </div>
+      <div class="muted" style="margin-top:6px">يطلع بأعلى الكشف وبالـ PDF.</div>
+    </div>
+    <div class="card">
+      <h2>البنايات</h2>
+      <div id="bList"></div>
+      <div class="row" style="margin-top:10px">
+        <input type="text" id="bNew" class="grow" placeholder="اسم بناية جديدة (مثال: D3)">
+        <button class="btn" id="bAdd">إضافة</button>
+      </div>
+      <div class="muted" style="margin-top:6px">البناية اللي عليها شغل ما تنحذف، بس تنخفى من قائمة الإضافة.</div>
+    </div>
+    <div class="card">
+      <h2>نسخة احتياطية</h2>
+      <div class="muted" style="line-height:1.7">كل البيانات محفوظة على هذا الموبايل بس. إذا انكسر أو انمسح التطبيق تروح البيانات، فخلّي نسخة احتياطية كل فترة وابعثها لنفسك على الواتساب أو الإيميل.</div>
+      <div class="muted" id="lastBk" style="margin:8px 0"></div>
+      <div class="actions">
+        <button class="btn ok" id="bkShare">📤 إرسال نسخة</button>
+        <button class="btn sec" id="bkSave">💾 حفظ بالتنزيلات</button>
+      </div>
+      <div class="actions">
+        <button class="btn sec" id="bkRestore">📥 استرجاع من نسخة</button>
+      </div>
+      <input type="file" id="bkFile" accept=".json,application/json,*/*" class="hidden">
+    </div>
+    <div class="card">
+      <h2>التحديث</h2>
+      <div class="muted">النسخة: <b id="verTxt"></b></div>
+      <div class="muted" style="margin:6px 0 10px;line-height:1.7">التحديثات تنزل لحالها لما يكون في إنترنت، ويطلعلك سؤال "توجد نسخة جديدة". البيانات ما تنمسح بالتحديث.</div>
+      <button class="btn sec" id="chkUpd">🔄 فحص التحديث الآن</button>
+    </div>
+  </section>
+</main>
+
+<button class="fab" id="fabAdd">＋ إضافة شغل</button>
+
+<nav class="tabs">
+  <button data-tab="day" class="on"><span class="ic">📋</span>الكشف اليومي</button>
+  <button data-tab="reports"><span class="ic">📄</span>التقارير</button>
+  <button data-tab="settings"><span class="ic">⚙️</span>الإعدادات</button>
+</nav>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<script>
+/* app-marker: bw_report_v1 */
+const APP_VERSION = "1.0";
+const KEY = "bw_data_v1";
+
+if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+window.__updateReady = function(){
+  if(confirm("توجد نسخة جديدة من التطبيق. تحديث الآن؟\n(البيانات ما تنمسح)")) location.reload();
+};
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// أرقام عربية/فارسية ← إنكليزية
+const nd = s => String(s==null?"":s).replace(/[٠-٩]/g,d=>d.charCodeAt(0)-1632).replace(/[۰-۹]/g,d=>d.charCodeAt(0)-1776);
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2200); }
+
+/* ---------- التخزين ---------- */
+let S;
+function load(){
+  try{ S=JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){ S=null; }
+  if(!S || typeof S!=="object") S={};
+  S.project = S.project||"";
+  S.buildings = Array.isArray(S.buildings)&&S.buildings.length ? S.buildings : [{id:"D1",name:"D1"},{id:"D2",name:"D2"}];
+  S.entries = S.entries && typeof S.entries==="object" ? S.entries : {};
+  S.lastBackup = S.lastBackup||0;
+}
+function save(){
+  try{ localStorage.setItem(KEY,JSON.stringify(S)); return true; }
+  catch(e){ alert("ما انحفظ! الذاكرة ممتلئة. خلّي نسخة احتياطية فوراً."); return false; }
+}
+load();
+
+/* ---------- تواريخ ---------- */
+const pad = n => String(n).padStart(2,"0");
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = () => isoOf(new Date());
+const parseIso = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (s,n) => { const d=parseIso(s); d.setDate(d.getDate()+n); return isoOf(d); };
+const DAYS=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+const dmy = s => { const [y,m,d]=s.split("-"); return `${d}/${m}/${y}`; };
+const dayName = s => DAYS[parseIso(s).getDay()];
+
+/* ---------- نصوص ---------- */
+function plural(n, one, two, few, many){
+  if(n===1) return one; if(n===2) return two;
+  if(n>=3&&n<=10) return `${n} ${few}`; return `${n} ${many}`;
+}
+function crewText(m,w){
+  m=+m||0; w=+w||0;
+  const a = m ? plural(m,"خلفة","خلفتين","خلفات","خلفة") : "";
+  const b = w ? plural(w,"عامل","عاملين","عمال","عامل") : "";
+  return a&&b ? `${a} و${b}` : (a||b||"—");
+}
+function normFloors(s){
+  s = nd(s).trim().replace(/[،؛;\/\\]+/g,",").replace(/\s*و\s*(?=\d)/g,",").replace(/\s*,\s*/g,",").replace(/^,+|,+$/g,"");
+  return s.replace(/\s+/g," ");
+}
+const firstNum = s => { const m=nd(s).match(/\d+/); return m?+m[0]:9999; };
+const bName = id => { const b=S.buildings.find(x=>x.id===id); return b?b.name:id; };
+const bOrder = id => { const i=S.buildings.findIndex(x=>x.id===id); return i<0?999:i; };
+
+function entriesOf(date){ return Object.values(S.entries).filter(e=>e.date===date); }
+function sortEntries(list){
+  return list.sort((a,b)=> bOrder(a.b)-bOrder(b.b) || firstNum(a.f)-firstNum(b.f) || String(a.f).localeCompare(String(b.f)) || firstNum(a.flat||"")-firstNum(b.flat||"") || (a.t||0)-(b.t||0));
+}
+function byBuilding(list){
+  const g={}; list.forEach(e=>{ (g[e.b]=g[e.b]||[]).push(e); });
+  return Object.keys(g).sort((x,y)=>bOrder(x)-bOrder(y)).map(id=>({id,list:sortEntries(g[id])}));
+}
+const sumM = l => l.reduce((s,e)=>s+(+e.m||0),0);
+const sumW = l => l.reduce((s,e)=>s+(+e.w||0),0);
+
+/* ---------- تبويبات ---------- */
+let tab="day";
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
+  tab=b.dataset.tab;
+  document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.toggle("on",x===b));
+  ["day","reports","settings"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==tab));
+  $("fabAdd").classList.toggle("hidden",tab!=="day");
+  if(tab==="reports") renderReport();
+  if(tab==="settings") renderSettings();
+  window.scrollTo(0,0);
+});
+
+/* ---------- الكشف اليومي ---------- */
+let curDate = today();
+$("dDate").value=curDate;
+$("dDate").onchange=()=>{ if($("dDate").value){ curDate=$("dDate").value; renderDay(); } };
+$("dPrev").onclick=()=>{ curDate=addDays(curDate,-1); $("dDate").value=curDate; renderDay(); };
+$("dNext").onclick=()=>{ curDate=addDays(curDate,1); $("dDate").value=curDate; renderDay(); };
+
+function renderHeader(){ $("hProj").textContent=S.project||""; }
+
+function renderBackupWarn(){
+  const n=Object.keys(S.entries).length, days=S.lastBackup?Math.floor((Date.now()-S.lastBackup)/864e5):null;
+  const box=$("backupWarn");
+  if(n>=5 && (days===null||days>=7)){
+    box.innerHTML=`<div class="warnbar"><span>${days===null?"ما عملت نسخة احتياطية لحد الآن":`صار لك ${days} يوم بدون نسخة احتياطية`}</span><button class="btn sm" id="bwGo">إرسال نسخة</button></div>`;
+    $("bwGo").onclick=()=>backupShare();
+  } else box.innerHTML="";
+}
+
+function renderDay(){
+  renderHeader(); renderBackupWarn();
+  $("dLabel").textContent = dayName(curDate)+" "+dmy(curDate)+(curDate===today()?" — اليوم":"");
+  const list=entriesOf(curDate);
+  $("sLines").textContent=list.length; $("sMasters").textContent=sumM(list); $("sWorkers").textContent=sumW(list);
+  const box=$("dayList");
+  if(!list.length){
+    box.innerHTML=`<div class="card empty">ماكو شغل مسجل بهذا اليوم.<br>اضغط <b>＋ إضافة شغل</b> تحت.<br><br><button class="btn sec" id="copyPrev">📑 نسخ شغل يوم سابق</button></div>`;
+    $("copyPrev").onclick=openCopy;
+    return;
+  }
+  box.innerHTML = byBuilding(list).map(g=>`
+    <div class="group">
+      <div class="group-h"><span>بناية <bdi>${esc(bName(g.id))}</bdi></span><span class="count">${g.list.length} أعمال · ${sumM(g.list)} خلفة · ${sumW(g.list)} عامل</span></div>
+      <div class="list">${g.list.map(e=>`
+        <div class="ent" data-id="${e.id}">
+          <div class="loc">ط ${esc(e.f)}${e.flat?`<small>شقة ${esc(e.flat)}</small>`:""}</div>
+          <div class="body"><div class="wk">${esc(e.work)}</div><span class="crew">${crewText(e.m,e.w)}</span></div>
+        </div>`).join("")}</div>
+    </div>`).join("") + `<div style="text-align:center;margin-top:4px"><button class="btn sec sm" id="copyPrev">📑 نسخ شغل يوم سابق</button></div>`;
+  box.querySelectorAll(".ent").forEach(el=>el.onclick=()=>openEntry(S.entries[el.dataset.id]));
+  $("copyPrev").onclick=openCopy;
+}
+
+/* ---------- نافذة ---------- */
+function modal(html){
+  $("modalRoot").innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">${html}</div></div>`;
+  $("mbg").addEventListener("click",e=>{ if(e.target.id==="mbg") closeModal(); });
+}
+function closeModal(){ $("modalRoot").innerHTML=""; }
+
+function recentWorks(bid){
+  const all=Object.values(S.entries).sort((a,b)=>(b.t||0)-(a.t||0));
+  const out=[], seen=new Set();
+  const push=e=>{ const k=e.work.trim(); if(k&&!seen.has(k)){ seen.add(k); out.push(k); } };
+  all.filter(e=>e.b===bid).forEach(e=>{ if(out.length<6) push(e); });
+  all.forEach(e=>{ if(out.length<10) push(e); });
+  return out;
+}
+
+let lastPick={b:null,f:""};
+function openEntry(e){
+  const isNew=!e;
+  const vis=S.buildings.filter(b=>!b.hidden || (e&&e.b===b.id));
+  e = e ? {...e} : {b:lastPick.b&&vis.some(x=>x.id===lastPick.b)?lastPick.b:(vis[0]&&vis[0].id), f:lastPick.f, flat:"", m:1, w:1, work:""};
+  modal(`
+    <h3>${isNew?"إضافة شغل":"تعديل الشغل"} — ${dayName(curDate)} ${dmy(isNew?curDate:e.date)}</h3>
+    <div class="field"><label>البناية</label><div class="chips" id="eB">${vis.map(b=>`<button data-id="${esc(b.id)}" class="${b.id===e.b?"on":""}">${esc(b.name)}</button>`).join("")}</div>
+      ${vis.length?"":`<div class="err">ماكو بنايات. ضيفها من الإعدادات.</div>`}</div>
+    <div class="two">
+      <div class="field"><label>الطابق</label><input type="text" id="eF" value="${esc(e.f)}" placeholder="مثال: 15 أو 1,2,17"></div>
+      <div class="field"><label>رقم الشقة</label><input type="text" id="eFlat" inputmode="numeric" value="${esc(e.flat||"")}" placeholder="اختياري"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label>الخلفات</label><div class="step"><button data-s="eM" data-d="-1">−</button><input type="text" inputmode="numeric" id="eM" value="${+e.m||0}"><button data-s="eM" data-d="1">+</button></div></div>
+      <div class="field"><label>العمال</label><div class="step"><button data-s="eW" data-d="-1">−</button><input type="text" inputmode="numeric" id="eW" value="${+e.w||0}"><button data-s="eW" data-d="1">+</button></div></div>
+    </div>
+    <div class="field"><label>الشغل</label><textarea id="eWork" placeholder="مثال: تعليق شبكة PPR">${esc(e.work)}</textarea>
+      <div class="sugg" id="eSugg"></div></div>
+    <div class="preview" id="ePrev"></div>
+    <div class="err" id="eErr"></div>
+    <div class="actions">
+      <button class="btn ok" id="eSave">حفظ</button>
+      ${isNew?`<button class="btn" id="eSaveMore">حفظ وإضافة غيره</button>`:""}
+    </div>
+    <div class="actions">
+      ${isNew?"":`<button class="btn bad" id="eDel">حذف</button>`}
+      <button class="btn sec" id="eCancel">إلغاء</button>
+    </div>`);
+  let bsel=e.b;
+  const sugg=()=>{ $("eSugg").innerHTML=recentWorks(bsel).map(w=>`<button title="${esc(w)}">${esc(w)}</button>`).join("");
+    $("eSugg").querySelectorAll("button").forEach(x=>x.onclick=()=>{ $("eWork").value=x.title; prev(); }); };
+  const prev=()=>{ const f=normFloors($("eF").value), fl=nd($("eFlat").value).trim();
+    $("ePrev").innerHTML=`<b>${esc(bName(bsel)||"")}</b> — ط${esc(f||"؟")}${fl?` شقة ${esc(fl)}`:""}: ${esc(crewText(nd($("eM").value),nd($("eW").value)))} — ${esc($("eWork").value.trim()||"...")}`; };
+  $("eB").querySelectorAll("button").forEach(x=>x.onclick=()=>{ bsel=x.dataset.id; $("eB").querySelectorAll("button").forEach(y=>y.classList.toggle("on",y===x)); sugg(); prev(); });
+  document.querySelectorAll(".step button").forEach(x=>x.onclick=()=>{ const i=$(x.dataset.s); i.value=Math.max(0,(+nd(i.value)||0)+(+x.dataset.d)); prev(); });
+  ["eF","eFlat","eM","eW","eWork"].forEach(id=>$(id).addEventListener("input",prev));
+  sugg(); prev();
+  const doSave=(more)=>{
+    const f=normFloors($("eF").value), fl=nd($("eFlat").value).trim(), m=parseInt(nd($("eM").value))||0, w=parseInt(nd($("eW").value))||0, work=$("eWork").value.trim();
+    if(!bsel) return $("eErr").textContent="اختار البناية";
+    if(!f) return $("eErr").textContent="اكتب الطابق";
+    if(!work) return $("eErr").textContent="اكتب الشغل";
+    if(!m&&!w) return $("eErr").textContent="لازم خلفة أو عامل واحد على الأقل";
+    const id=e.id||uid();
+    S.entries[id]={id, date:isNew?curDate:e.date, b:bsel, f, flat:fl, m, w, work, t:e.t||Date.now()};
+    if(!save()) return;
+    lastPick={b:bsel,f};
+    renderDay();
+    if(more){ toast("انحفظ ✓"); openEntry(null); setTimeout(()=>$("eFlat").focus(),50); }
+    else { closeModal(); toast("انحفظ ✓"); }
+  };
+  $("eSave").onclick=()=>doSave(false);
+  if(isNew) $("eSaveMore").onclick=()=>doSave(true);
+  if(!isNew) $("eDel").onclick=()=>{ if(confirm("حذف هذا الشغل؟")){ delete S.entries[e.id]; save(); closeModal(); renderDay(); toast("انحذف"); } };
+  $("eCancel").onclick=closeModal;
+}
+$("fabAdd").onclick=()=>openEntry(null);
+
+/* نسخ شغل يوم سابق (للشغل المستمر) */
+function openCopy(){
+  const dates=[...new Set(Object.values(S.entries).map(e=>e.date))].filter(d=>d<curDate).sort().reverse();
+  if(!dates.length){ toast("ماكو أيام سابقة مسجلة"); return; }
+  modal(`<h3>نسخ شغل يوم سابق إلى ${dmy(curDate)}</h3>
+    <div class="field"><label>من يوم</label><select id="cpD">${dates.slice(0,60).map(d=>`<option value="${d}">${dayName(d)} ${dmy(d)} (${entriesOf(d).length})</option>`).join("")}</select></div>
+    <div class="muted" style="margin-bottom:10px">ينسخ كل الأسطر، وبعدها تقدر تعدل أو تحذف أي سطر.</div>
+    <div class="actions"><button class="btn ok" id="cpGo">نسخ</button><button class="btn sec" id="cpX">إلغاء</button></div>`);
+  $("cpX").onclick=closeModal;
+  $("cpGo").onclick=()=>{
+    const src=sortEntries(entriesOf($("cpD").value)); let t=Date.now();
+    src.forEach(e=>{ const id=uid(); S.entries[id]={...e,id,date:curDate,t:t++}; });
+    save(); closeModal(); renderDay(); toast(`انتسخ ${src.length} سطر`);
+  };
+}
+
+/* ---------- التقارير ---------- */
+$("rDate").value=today(); $("rTo").value=today(); $("rFrom").value=addDays(today(),-6);
+function fillBldSel(){
+  const v=$("rBld").value;
+  $("rBld").innerHTML=`<option value="">كل البنايات</option>`+S.buildings.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
+  if([...$("rBld").options].some(o=>o.value===v)) $("rBld").value=v;
+}
+function rParams(){ return {type:$("rType").value, date:$("rDate").value, from:$("rFrom").value, to:$("rTo").value, b:$("rBld").value}; }
+$("rType").onchange=()=>{ const r=$("rType").value==="range"; $("rDayBox").classList.toggle("hidden",r); $("rFromBox").classList.toggle("hidden",!r); $("rToBox").classList.toggle("hidden",!r); renderReport(); };
+["rDate","rFrom","rTo","rBld"].forEach(id=>$(id).addEventListener("change",renderReport));
+
+function dayTable(list, withBldRows){
+  let n=0;
+  const rows = byBuilding(list).map(g=>
+    (withBldRows?`<tr class="grp"><td colspan="6">بناية <bdi>${esc(bName(g.id))}</bdi> — ${sumM(g.list)} خلفة · ${sumW(g.list)} عامل</td></tr>`:"")+
+    g.list.map(e=>`<tr><td>${++n}</td><td>${esc(e.f)}</td><td>${esc(e.flat||"—")}</td><td>${+e.m||"—"}</td><td>${+e.w||"—"}</td><td class="w">${esc(e.work)}</td></tr>`).join("")
+  ).join("");
+  return `<table><thead><tr><th style="width:26px">#</th><th style="width:60px">الطابق</th><th style="width:44px">الشقة</th><th style="width:48px">خلفات</th><th style="width:44px">عمال</th><th>الشغل</th></tr></thead>
+    <tbody>${rows}<tr class="tot"><td colspan="3">المجموع</td><td>${sumM(list)}</td><td>${sumW(list)}</td><td></td></tr></tbody></table>`;
+}
+function renderReport(){
+  fillBldSel();
+  const P=rParams(), A=$("printArea");
+  const head=(t,sub)=>`<h2>${t}</h2><div class="sub">${S.project?esc(S.project)+" — ":""}${sub}</div>`;
+  const sign=`<div class="sign"><div>المشرف</div><div>المهندس</div></div>`;
+  const filt=l=>P.b?l.filter(e=>e.b===P.b):l;
+  if(P.type==="day"){
+    if(!P.date){ A.innerHTML=`<div class="empty">اختار التاريخ</div>`; return; }
+    const list=filt(entriesOf(P.date));
+    if(!list.length){ A.innerHTML=`<div class="empty">ماكو شغل مسجل ${P.b?"لبناية "+"<bdi>"+esc(bName(P.b))+"</bdi>"+" ":""}بتاريخ ${dmy(P.date)}</div>`; return; }
+    const groups=byBuilding(list);
+    let html=head("كشف أعمال يومي"+(P.b?" — بناية "+"<bdi>"+esc(bName(P.b))+"</bdi>":""), `${dayName(P.date)} ${dmy(P.date)}`);
+    html+=groups.map(g=>`<h3>بناية <bdi>${esc(bName(g.id))}</bdi><span>${sumM(g.list)} خلفة · ${sumW(g.list)} عامل</span></h3>${dayTable(g.list,false)}`).join("");
+    if(groups.length>1){
+      html+=`<h4>الخلاصة</h4><table><thead><tr><th>البناية</th><th>عدد الأعمال</th><th>الخلفات</th><th>العمال</th></tr></thead><tbody>`+
+        groups.map(g=>`<tr><td><bdi>${esc(bName(g.id))}</bdi></td><td>${g.list.length}</td><td>${sumM(g.list)}</td><td>${sumW(g.list)}</td></tr>`).join("")+
+        `<tr class="tot"><td>المجموع</td><td>${list.length}</td><td>${sumM(list)}</td><td>${sumW(list)}</td></tr></tbody></table>`;
+    }
+    A.innerHTML=`<div class="rep">${html}${sign}</div>`;
+  } else {
+    if(!P.from||!P.to){ A.innerHTML=`<div class="empty">اختار من تاريخ وإلى تاريخ</div>`; return; }
+    if(P.from>P.to){ A.innerHTML=`<div class="empty">"من تاريخ" لازم يكون قبل "إلى تاريخ"</div>`; return; }
+    const list=filt(Object.values(S.entries).filter(e=>e.date>=P.from&&e.date<=P.to));
+    if(!list.length){ A.innerHTML=`<div class="empty">ماكو شغل مسجل بهذه الفترة</div>`; return; }
+    const dates=[...new Set(list.map(e=>e.date))].sort();
+    const groups=byBuilding(list);
+    let html=head("تقرير أعمال"+(P.b?" — بناية "+"<bdi>"+esc(bName(P.b))+"</bdi>":" البنايات"), `من ${dmy(P.from)} إلى ${dmy(P.to)}`);
+    html+=`<h4>الخلاصة</h4><table><thead><tr><th>البناية</th><th>أيام العمل</th><th>عدد الأعمال</th><th>مجموع الخلفات</th><th>مجموع العمال</th></tr></thead><tbody>`+
+      groups.map(g=>`<tr><td><bdi>${esc(bName(g.id))}</bdi></td><td>${new Set(g.list.map(e=>e.date)).size}</td><td>${g.list.length}</td><td>${sumM(g.list)}</td><td>${sumW(g.list)}</td></tr>`).join("")+
+      (groups.length>1?`<tr class="tot"><td>المجموع</td><td>${dates.length}</td><td>${list.length}</td><td>${sumM(list)}</td><td>${sumW(list)}</td></tr>`:"")+`</tbody></table>`;
+    html+=dates.map(d=>{ const l=list.filter(e=>e.date===d);
+      return `<h3>${dayName(d)} ${dmy(d)}<span>${sumM(l)} خلفة · ${sumW(l)} عامل</span></h3>${dayTable(l,!P.b)}`; }).join("");
+    A.innerHTML=`<div class="rep">${html}${sign}</div>`;
+  }
+}
+
+/* ---------- PDF + معاينة ---------- */
+const LIBS=["https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js","https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"];
+function loadScript(u){ return new Promise((res,rej)=>{ const sc=document.createElement("script"); sc.src=u; sc.onload=res; sc.onerror=rej; document.head.appendChild(sc); }); }
+function loadLibs(){ return (window.html2canvas&&window.jspdf)?Promise.resolve():Promise.all(LIBS.map(loadScript)); }
+function busy(on,msg){ let b=$("busy"); if(!on){ if(b) b.remove(); return; } if(!b){ b=document.createElement("div"); b.id="busy"; document.body.appendChild(b); } b.textContent=msg||"جارِ التجهيز..."; }
+function repFileName(){
+  const P=rParams(), bl=P.b?"-"+bName(P.b).replace(/[^\w\-]/g,""):"";
+  return P.type==="day" ? `works${bl}-${P.date}.pdf` : `works${bl}-${P.from}_to_${P.to}.pdf`;
+}
+const PW=794, PH=Math.round(794*297/210), PM=30;
+async function buildPages(){
+  const rep=$("printArea").querySelector(".rep");
+  if(!rep) throw new Error("empty");
+  await loadLibs();
+  const box=document.createElement("div");
+  box.style.cssText=`position:fixed;top:0;left:-20000px;width:${PW}px;padding:0 ${PM}px;background:#fff;direction:rtl;box-sizing:border-box`;
+  box.innerHTML=rep.outerHTML;
+  box.querySelectorAll("table").forEach(t=>t.style.fontSize="12px");
+  document.body.appendChild(box);
+  try{
+    const top=box.getBoundingClientRect().top;
+    const cuts=[...box.querySelectorAll("tr,h2,h3,h4,.sub,.sign")].map(el=>Math.ceil(el.getBoundingClientRect().bottom-top)).sort((a,b)=>a-b);
+    const total=Math.ceil(box.scrollHeight), SC=2;
+    const cv=await window.html2canvas(box,{scale:SC,backgroundColor:"#fff",width:PW,height:total,windowWidth:PW});
+    const avail=PH-2*PM, pages=[];
+    let start=0;
+    while(start<total-1){
+      let end=Math.min(total,start+avail);
+      if(end<total){ const c=cuts.filter(b=>b>start+20&&b<=end); if(c.length) end=c[c.length-1]; }
+      const pg=document.createElement("canvas"); pg.width=PW*SC; pg.height=PH*SC;
+      const g=pg.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,pg.width,pg.height);
+      g.drawImage(cv,0,start*SC,PW*SC,(end-start)*SC,0,PM*SC,PW*SC,(end-start)*SC);
+      pages.push(pg); start=end;
+    }
+    if(pages.length>1) pages.forEach((pg,i)=>{ const g=pg.getContext("2d"); g.fillStyle="#555"; g.font=`${11*SC}px sans-serif`; g.textAlign="center"; g.fillText(`${i+1} / ${pages.length}`,pg.width/2,pg.height-12*SC); });
+    return pages;
+  } finally { box.remove(); }
+}
+function pagesToPdf(pages){
+  const pdf=new window.jspdf.jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  pages.forEach((pg,i)=>{ if(i) pdf.addPage(); pdf.addImage(pg.toDataURL("image/jpeg",0.92),"JPEG",0,0,210,297); });
+  return pdf;
+}
+async function shareBlob(b64, blob, name, mime){
+  if(window.AndroidBridge && AndroidBridge.shareFile){
+    const r=AndroidBridge.shareFile(b64(),name,mime);
+    if(r) toast("ما انرسل: "+r);
+  } else {
+    const file=new File([blob()],name,{type:mime});
+    if(navigator.canShare && navigator.canShare({files:[file]})) await navigator.share({files:[file],title:name}).catch(()=>{});
+    else { const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
+  }
+}
+async function sharePdf(pages){
+  busy(true,"جارِ تجهيز PDF...");
+  try{
+    pages = pages || await buildPages();
+    const pdf=pagesToPdf(pages);
+    await shareBlob(()=>pdf.output("datauristring").split(",")[1], ()=>pdf.output("blob"), repFileName(), "application/pdf");
+  } catch(e){ pdfError(e); }
+  finally{ busy(false); }
+}
+function pdfError(e){
+  busy(false);
+  if(e&&e.message==="empty"){ toast("ماكو كشف"); return; }
+  toast(window.jspdf?"صار خطأ بتجهيز الملف، جرّب مرة ثانية":"أول مرة يحتاج إنترنت حتى ينزّل أدوات PDF");
+}
+window.__shareFailed=()=>toast("ما انفتحت قائمة الإرسال");
+
+async function openPreview(){
+  busy(true,"جارِ تجهيز المعاينة...");
+  let pages;
+  try{ pages=await buildPages(); } catch(e){ pdfError(e); return; }
+  busy(false);
+  const urls=pages.map(p=>p.toDataURL("image/jpeg",0.9));
+  const ov=document.createElement("div"); ov.id="pv";
+  ov.innerHTML=`<div class="bar">
+      <button class="btn sec" id="pvClose">✕</button>
+      <button class="btn sec" id="pvOut">−</button><span class="z" id="pvZ"></span><button class="btn sec" id="pvIn">+</button>
+      <span class="grow"></span>
+      <button class="btn ok" id="pvShare">📤 إرسال PDF</button>
+    </div>
+    <div class="pages" id="pvPages">${urls.map((u,i)=>`<img src="${u}">`+(urls.length>1?`<div class="pn">صفحة ${i+1} من ${urls.length}</div>`:"")).join("")}</div>`;
+  document.body.appendChild(ov);
+  const box=ov.querySelector("#pvPages");
+  const fit=()=>Math.min(1,(box.clientWidth-24)/PW);
+  let z=fit();
+  const apply=(keep)=>{
+    const cx=box.scrollLeft+box.clientWidth/2, cy=box.scrollTop+box.clientHeight/2, oW=box.scrollWidth||1, oH=box.scrollHeight||1;
+    z=Math.max(0.2,Math.min(4,z));
+    ov.querySelectorAll("img").forEach(im=>{ im.style.width=(PW*z)+"px"; im.style.height=(PH*z)+"px"; });
+    ov.querySelector("#pvZ").textContent=Math.round(z*100)+"%";
+    if(keep){ box.scrollLeft=cx*box.scrollWidth/oW-box.clientWidth/2; box.scrollTop=cy*box.scrollHeight/oH-box.clientHeight/2; }
+  };
+  apply(false);
+  ov.querySelector("#pvIn").onclick=()=>{ z*=1.25; apply(true); };
+  ov.querySelector("#pvOut").onclick=()=>{ z/=1.25; apply(true); };
+  ov.querySelector("#pvZ").onclick=()=>{ z=fit(); apply(true); };
+  ov.querySelector("#pvClose").onclick=()=>ov.remove();
+  ov.querySelector("#pvShare").onclick=()=>sharePdf(pages);
+  let d0=0,z0=1;
+  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+  box.addEventListener("touchstart",e=>{ if(e.touches.length===2){ d0=dist(e.touches); z0=z; } },{passive:true});
+  box.addEventListener("touchmove",e=>{ if(e.touches.length===2&&d0){ e.preventDefault(); z=z0*dist(e.touches)/d0; apply(true); } },{passive:false});
+  box.addEventListener("touchend",e=>{ if(e.touches.length<2) d0=0; });
+}
+$("rPreview").onclick=openPreview;
+$("rShare").onclick=()=>sharePdf();
+$("rPrint").onclick=()=>{
+  if(!$("printArea").querySelector(".rep")){ toast("ماكو كشف"); return; }
+  const P=rParams(), title=P.type==="day"?"كشف أعمال "+dmy(P.date):"تقرير أعمال "+dmy(P.from)+" - "+dmy(P.to);
+  if(window.AndroidBridge && AndroidBridge.printSized) AndroidBridge.printSized(title,"A4P"); else window.print();
+};
+
+/* ---------- الإعدادات ---------- */
+function renderSettings(){
+  $("setProj").value=S.project;
+  const used=new Set(Object.values(S.entries).map(e=>e.b));
+  $("bList").innerHTML=S.buildings.map((b,i)=>`<div class="bl ${b.hidden?"off":""}">
+      <span class="nm">${esc(b.name)}</span>
+      <button class="btn sec sm" data-a="up" data-i="${i}" ${i?"":"disabled"}>▲</button>
+      <button class="btn sec sm" data-a="ren" data-i="${i}">تعديل</button>
+      ${used.has(b.id)?`<button class="btn sec sm" data-a="hide" data-i="${i}">${b.hidden?"إظهار":"إخفاء"}</button>`:`<button class="btn bad sm" data-a="del" data-i="${i}">حذف</button>`}
+    </div>`).join("")||`<div class="muted">ماكو بنايات</div>`;
+  $("bList").querySelectorAll("button").forEach(x=>x.onclick=()=>{
+    const i=+x.dataset.i, b=S.buildings[i];
+    if(x.dataset.a==="up"){ S.buildings.splice(i-1,0,S.buildings.splice(i,1)[0]); }
+    if(x.dataset.a==="ren"){ const n=prompt("اسم البناية",b.name); if(n===null) return; const t=nd(n).trim(); if(!t) return;
+      if(S.buildings.some(o=>o!==b&&o.name===t)){ toast("الاسم موجود"); return; } b.name=t; }
+    if(x.dataset.a==="hide"){ b.hidden=!b.hidden; }
+    if(x.dataset.a==="del"){ if(!confirm("حذف بناية "+b.name+"؟")) return; S.buildings.splice(i,1); }
+    save(); renderSettings(); renderDay();
+  });
+  $("lastBk").textContent = S.lastBackup ? "آخر نسخة: "+dmy(isoOf(new Date(S.lastBackup))) : "ما عملت نسخة احتياطية لحد الآن.";
+  $("verTxt").textContent=APP_VERSION;
+}
+$("setProjSave").onclick=()=>{ S.project=$("setProj").value.trim(); save(); renderHeader(); toast("انحفظ ✓"); };
+$("bAdd").onclick=()=>{
+  const n=nd($("bNew").value).trim(); if(!n) return;
+  if(S.buildings.some(b=>b.name===n)){ toast("البناية موجودة"); return; }
+  let id=n; while(S.buildings.some(b=>b.id===id)) id=n+"_"+uid().slice(-3);
+  S.buildings.push({id,name:n}); save(); $("bNew").value=""; renderSettings(); toast("انضافت ✓");
+};
+
+/* نسخة احتياطية */
+function backupJson(){ return JSON.stringify({app:"building-works",v:1,at:new Date().toISOString(),data:{project:S.project,buildings:S.buildings,entries:S.entries}}); }
+const b64utf8 = s => btoa(unescape(encodeURIComponent(s)));
+function bkName(){ return `building-works-backup-${today()}.json`; }
+async function backupShare(){
+  const s=backupJson();
+  await shareBlob(()=>b64utf8(s), ()=>new Blob([s],{type:"application/json"}), bkName(), "application/json");
+  S.lastBackup=Date.now(); save(); renderBackupWarn(); if(tab==="settings") renderSettings();
+}
+$("bkShare").onclick=backupShare;
+$("bkSave").onclick=()=>{
+  const s=backupJson();
+  if(window.AndroidBridge && AndroidBridge.saveDownload){
+    const r=AndroidBridge.saveDownload(b64utf8(s),bkName(),"application/json");
+    if(r!=="OK"){ toast("ما انحفظ: "+r); return; }
+    toast("انحفظ بمجلد التنزيلات ✓");
+  } else { const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([s],{type:"application/json"})); a.download=bkName(); a.click(); }
+  S.lastBackup=Date.now(); save(); renderSettings(); renderBackupWarn();
+};
+$("bkRestore").onclick=()=>$("bkFile").click();
+$("bkFile").onchange=async()=>{
+  const f=$("bkFile").files[0]; $("bkFile").value=""; if(!f) return;
+  let j; try{ j=JSON.parse(await f.text()); }catch(e){ alert("الملف مو نسخة احتياطية صحيحة"); return; }
+  if(!j||j.app!=="building-works"||!j.data||!j.data.entries){ alert("الملف مو نسخة احتياطية من هذا التطبيق"); return; }
+  const inc=Object.values(j.data.entries), neu=inc.filter(e=>!S.entries[e.id]).length;
+  if(!confirm(`النسخة فيها ${inc.length} سطر، منها ${neu} جديد.\nيندمجون مع البيانات الموجودة (ما ينمسح شي). متابعة؟`)) return;
+  inc.forEach(e=>{ if(e&&e.id&&!S.entries[e.id]) S.entries[e.id]=e; });
+  (j.data.buildings||[]).forEach(b=>{ if(b&&b.id&&!S.buildings.some(x=>x.id===b.id)) S.buildings.push(b); });
+  if(!S.project&&j.data.project) S.project=j.data.project;
+  save(); renderSettings(); renderDay(); toast(`انضاف ${neu} سطر ✓`);
+};
+$("chkUpd").onclick=()=>{
+  if(window.AndroidBridge && AndroidBridge.checkUpdate){ AndroidBridge.checkUpdate(); toast("جارِ الفحص... إذا في نسخة جديدة يطلعلك سؤال"); }
+  else location.reload();
+};
+
+renderDay();
+</script>
+</body>
+</html>

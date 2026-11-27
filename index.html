@@ -104,6 +104,8 @@
   .flr span{color:var(--muted);font-size:20px}
   .seg{display:flex;background:#e8ecf2;border-radius:10px;padding:3px;margin-bottom:12px}
   .seg button{flex:1;border:0;background:none;padding:9px;border-radius:8px;font-weight:600;color:var(--muted);cursor:pointer}
+  .seg4 button{padding:7px 2px;font-size:12px;line-height:1.3}
+  .seg4 button small{display:block;font-weight:400;font-size:11px}
   .seg button.on{background:#fff;color:var(--pri);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .pgh{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .pgh .big{font-size:22px;color:var(--pri)}
@@ -112,7 +114,8 @@
   .pbar i.full{background:var(--ok)}
   .tcard{cursor:pointer}
   .pc{font-weight:700;font-size:14px;padding:2px 9px;border-radius:9px}
-  .full{color:var(--ok)} .part{color:#8a5a06} .zero{color:#9aa3b2}
+  .full{color:var(--ok)} .part{color:#8a5a06} .zero{color:#9aa3b2} .na{color:#c3c8d0}
+  .un.na{background:#f6f7f9;border-style:dashed}
   .pc.full{background:#dcf3e5} .pc.part{background:#fdf0d5} .pc.zero{background:#eef1f6}
   .units{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .un{border:1px solid #cfd4dc;background:#fff;border-radius:9px;padding:5px 9px;min-width:62px;cursor:pointer;line-height:1.3}
@@ -297,7 +300,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "2.3";
+const APP_VERSION = "2.4";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -326,7 +329,8 @@ function load(){
   S.entries = S.entries && typeof S.entries==="object" ? S.entries : {};
   S.lastBackup = S.lastBackup||0;
   S.trades = Array.isArray(S.trades) ? S.trades : [];
-  S.trades.forEach(t=>{ if(!Array.isArray(t.stages)) t.stages=[]; });
+  S.trades.forEach(t=>{ if(!Array.isArray(t.stages)) t.stages=[]; t.sets=t.sets&&typeof t.sets==="object"?t.sets:{};
+    ["bas","vil","roof"].forEach(k=>{ if(!Array.isArray(t.sets[k])) t.sets[k]=[]; }); });
   S.manual = S.manual && typeof S.manual==="object" ? S.manual : {};
   S.buildings.forEach(b=>{ if(!Array.isArray(b.floors)) b.floors=[]; b.floors.forEach(f=>{ if(!Array.isArray(f.flats)) f.flats=[]; }); });
   fixJoinedFlats();
@@ -461,8 +465,16 @@ function stageTag(e){ const l=stageLabel(e); return l?`<span class="tag2 ${e.dn&
    الطابق اللي ما إله شقق (سرداب، سطح...) بينحسب وحدة لحاله.
    S.manual: مراحل معلّمة باليد (لشغل خلص قبل التطبيق)  key = b|f|x|stage */
 const trById = id => S.trades.find(t=>t.id===id);
-const stById = (t,id) => t&&t.stages.find(s=>s.id===id);
-const trWeight = t => t.stages.reduce((a,s)=>a+(+s.w||0),0);
+/* لكل صنف مراحل حسب نوع الطابق: الشقق والأرضي (stages) / السرداب / فيلا السطح / السطح (sets)
+   نوع بدون مراحل = الصنف ما بينحسب فيه */
+const FTYPES=[["std","الشقق والأرضي"],["bas","السرداب"],["vil","فيلا السطح"],["roof","السطح"]];
+const ftName = ty => (FTYPES.find(x=>x[0]===ty)||[,""])[1];
+const ftype = f => f&&(f.k==="bas"||f.k==="vil"||f.k==="roof") ? f.k : "std";
+const stagesFor = (t,ty) => ty==="std" ? t.stages : ((t.sets||{})[ty]||[]);
+const allStages = t => FTYPES.flatMap(([ty])=>stagesFor(t,ty));
+const stById = (t,id) => t&&allStages(t).find(s=>s.id===id);
+const wOf = a => a.reduce((x,s)=>x+(+s.w||0),0);
+const trWeight = t => wOf(allStages(t));
 function unitsOf(b){ const out=[];
   floorsOf(b).forEach(f=>{ const fl=flatsOf(f); if(fl.length) fl.forEach(x=>out.push({f,x})); else out.push({f,x:null}); });
   return out; }
@@ -482,14 +494,14 @@ function doneMap(b){ // key|stage → {date, eid} أو {manual}
   Object.keys(S.manual).forEach(k=>{ if(k.startsWith(b.id+"|")&&!m.has(k)) m.set(k,{manual:true,date:S.manual[k]}); });
   return m;
 }
-function unitPct(dm,b,u,t){ const W=trWeight(t); if(!W) return 0;
-  const k=uKey(b,u.f,u.x); return t.stages.reduce((a,s)=>a+(dm.has(k+"|"+s.id)?(+s.w||0):0),0)/W*100; }
-const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
-const pctTxt = p => (p>=99.95?100:p<=0?0:Math.max(1,Math.floor(p)))+"%";
-const pctCls = p => p>=99.95?"full":p>0?"part":"zero";
+function unitPct(dm,b,u,t){ const st=stagesFor(t,ftype(u.f)), W=wOf(st); if(!W) return null; // null = الصنف ما إله شغل هون
+  const k=uKey(b,u.f,u.x); return st.reduce((a,s)=>a+(dm.has(k+"|"+s.id)?(+s.w||0):0),0)/W*100; }
+const avg = a => { const v=a.filter(x=>x!=null); return v.length ? v.reduce((x,y)=>x+y,0)/v.length : null; };
+const pctTxt = p => p==null ? "—" : (p>=99.95?100:p<=0?0:Math.max(1,Math.floor(p)))+"%";
+const pctCls = p => p==null?"na":p>=99.95?"full":p>0?"part":"zero";
 function bldProgress(b){
   const dm=doneMap(b), units=unitsOf(b), trs=S.trades.filter(t=>trWeight(t)>0);
-  const per=trs.map(t=>{ const ps=units.map(u=>unitPct(dm,b,u,t)); return {t, pct:avg(ps), full:ps.filter(p=>p>=99.95).length}; });
+  const per=trs.map(t=>{ const ps=units.map(u=>unitPct(dm,b,u,t)); return {t, pct:avg(ps), full:ps.filter(p=>p!=null&&p>=99.95).length, n:ps.filter(p=>p!=null).length}; });
   return {dm, units, per, total:avg(per.map(x=>x.pct))};
 }
 
@@ -503,6 +515,7 @@ function renderFlatGrid(b,P,trs){
           return `<button class="un fu ${pctCls(p)}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${u.x?"شقة "+esc(u.x.name):"الطابق"}</b><span>${pctTxt(p)}</span></button>`; }).join("")}</div></div>`; }).join("");
 }
 function renderFlatPage(b,P,trs,f,x){
+  trs=trs.filter(t=>stagesFor(t,ftype(f)).length);
   const u={f,x}, k=uKey(b,f,x), tot=unitTotal(P.dm,b,u,trs);
   return `<div class="card"><div class="row" style="justify-content:space-between"><button class="btn sec sm" id="fpBack">→ رجوع</button><b><bdi>${esc(b.name)}</bdi></b></div>
       <div class="pgh" style="margin-top:10px"><b>${esc(fLabel(f))}${x?` · شقة ${esc(x.name)}`:""}</b><b class="big">${pctTxt(tot)}</b></div>${bar(tot)}
@@ -510,19 +523,20 @@ function renderFlatPage(b,P,trs,f,x){
       <div class="actions" style="margin-top:10px"><button class="btn sec sm" id="fpPv">🔍 معاينة</button><button class="btn ok sm" id="fpSh">📤 إرسال PDF</button></div></div>`+
     trs.map(t=>{ const p=unitPct(P.dm,b,u,t);
       return `<div class="card"><div class="pgh"><b>${esc(t.name)}</b><b>${pctTxt(p)}</b></div>${bar(p)}
-        <div style="margin-top:8px">${t.stages.map(s=>{ const d=P.dm.get(k+"|"+s.id);
+        <div style="margin-top:8px">${stagesFor(t,ftype(f)).map(s=>{ const d=P.dm.get(k+"|"+s.id);
           return `<div class="stg ${d?"on":""}"><span class="ck">${d?"✓":""}</span><div class="grow"><b>${esc(s.name)}</b> <small>(${+s.w||0})</small>
             <small class="d">${d?(d.manual?"معلّمة باليد":"بالكشف "+dmy(d.date)):"ما خلصت"}</small></div>
             ${d&&!d.manual?"":`<button class="btn ${d?"sec":"ok"} sm" data-mk="${k}|${s.id}">${d?"إلغاء":"✓ خلصت"}</button>`}</div>`; }).join("")}</div></div>`; }).join("");
 }
 function flatRep(b,P,trs,f,x){
+  trs=trs.filter(t=>stagesFor(t,ftype(f)).length);
   const u={f,x}, k=uKey(b,f,x), tot=unitTotal(P.dm,b,u,trs);
   const el=document.createElement("div"); el.className="rep";
   el.innerHTML=`<h2>نسبة الإنجاز — بناية <bdi>${esc(b.name)}</bdi> · ${esc(fLabel(f))}${x?` · شقة ${esc(x.name)}`:""}</h2>
     <div class="sub">${S.project?esc(S.project)+" — ":""}${dayName(today())} ${dmy(today())}</div>
     <table><thead><tr><th>الصنف</th><th>الإنجاز</th></tr></thead><tbody>${trs.map(t=>{ const p=unitPct(P.dm,b,u,t); return `<tr><td>${esc(t.name)}</td><td class="${pctCls(p)}"><b>${pctTxt(p)}</b></td></tr>`; }).join("")}
     <tr class="tot"><td>نسبة الشقة الكلية</td><td>${pctTxt(tot)}</td></tr></tbody></table>`+
-    trs.map(t=>`<h4>${esc(t.name)} — ${pctTxt(unitPct(P.dm,b,u,t))}</h4><table><thead><tr><th>المرحلة</th><th style="width:60px">الوزن</th><th style="width:150px">الحالة</th></tr></thead><tbody>${t.stages.map(s=>{ const d=P.dm.get(k+"|"+s.id);
+    trs.map(t=>`<h4>${esc(t.name)} — ${pctTxt(unitPct(P.dm,b,u,t))}</h4><table><thead><tr><th>المرحلة</th><th style="width:60px">الوزن</th><th style="width:150px">الحالة</th></tr></thead><tbody>${stagesFor(t,ftype(f)).map(s=>{ const d=P.dm.get(k+"|"+s.id);
       return `<tr><td class="w">${esc(s.name)}</td><td>${+s.w||0}</td><td class="${d?"full":"zero"}">${d?"✓ خلصت"+(d.manual?"":" "+dmy(d.date)):"ما خلصت"}</td></tr>`; }).join("")}</tbody></table>`).join("")+
     `<div class="sign"><div>المشرف</div><div>المهندس</div></div>`;
   return el;
@@ -561,7 +575,7 @@ function renderProgress(){
       <div class="muted" style="margin-top:6px">${units.length} شقة/وحدة · ${trs.length} أصناف</div>
       <div class="actions" style="margin-top:10px"><button class="btn sec sm" id="pgPv">🔍 معاينة</button><button class="btn ok sm" id="pgSh">📤 إرسال PDF</button></div></div>`+
       P.per.map(x=>`<div class="card tcard" data-t="${x.t.id}"><div class="pgh"><b>${esc(x.t.name)}</b><b>${pctTxt(x.pct)}</b></div>${bar(x.pct)}
-        <div class="muted" style="margin-top:6px">خلصت بـ ${x.full} من ${units.length} · اضغط للتفاصيل</div></div>`).join("");
+        <div class="muted" style="margin-top:6px">خلصت بـ ${x.full} من ${x.n} · اضغط للتفاصيل</div></div>`).join("");
     box.innerHTML=h; hookB(); hookSeg();
     box.querySelectorAll(".tcard").forEach(c=>c.onclick=()=>{ progT=c.dataset.t; renderProgress(); window.scrollTo(0,0); });
     $("pgPv").onclick=()=>openPreview(progRep(b,P),progName(b));
@@ -571,7 +585,7 @@ function renderProgress(){
   const x=P.per.find(y=>y.t.id===t.id)||{pct:0,full:0};
   h+=`<div class="card"><div class="row" style="justify-content:space-between"><button class="btn sec sm" id="pgBack">→ رجوع</button><b><bdi>${esc(b.name)}</bdi></b></div>
     <div class="pgh" style="margin-top:10px"><b>${esc(t.name)}</b><b class="big">${pctTxt(x.pct)}</b></div>${bar(x.pct)}
-    <div class="muted" style="margin-top:6px">${t.stages.map(s=>`${esc(s.name)} ${+s.w||0}`).join(" · ")}</div></div>`;
+    ${FTYPES.filter(([ty])=>stagesFor(t,ty).length).map(([ty,nm])=>`<div class="muted" style="margin-top:6px"><b>${nm}:</b> ${stagesFor(t,ty).map(s=>`${esc(s.name)} ${+s.w||0}`).join(" · ")}</div>`).join("")}</div>`;
   h+=floorsOf(b).slice().reverse().map(f=>{ const us=units.filter(u=>u.f===f), ps=us.map(u=>unitPct(P.dm,b,u,t));
     return `<div class="card fcard"><div class="pgh"><b>${esc(fLabel(f))}</b><span class="pc ${pctCls(avg(ps))}">${pctTxt(avg(ps))}</span></div>
       <div class="units">${us.map((u,i)=>`<button class="un ${pctCls(ps[i])}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${u.x?esc(u.x.name):"الطابق"}</b><span>${pctTxt(ps[i])}</span></button>`).join("")}</div></div>`; }).join("");
@@ -581,15 +595,15 @@ function renderProgress(){
   function hookB(){ box.querySelectorAll("#pgB button").forEach(el=>el.onclick=()=>{ progB=el.dataset.id; progT=null; progU=null; renderProgress(); }); }
   function hookSeg(){ box.querySelectorAll(".seg button").forEach(el=>el.onclick=()=>{ progMode=el.dataset.m; progT=null; progU=null; renderProgress(); }); }
 }
-const bar = p => `<div class="pbar"><i class="${pctCls(p)}" style="width:${Math.min(100,p)}%"></i></div>`;
+const bar = p => `<div class="pbar"><i class="${pctCls(p)}" style="width:${Math.min(100,p||0)}%"></i></div>`;
 function unitModal(b,f,x,t){
   const dm=doneMap(b), k=uKey(b,f,x), p=unitPct(dm,b,{f,x},t);
   modal(`<h3>${esc(t.name)} — <bdi>${esc(b.name)}</bdi> · ${esc(fLabel(f))}${x?` · شقة ${esc(x.name)}`:""}</h3>
     <div class="pgh"><span class="muted">الإنجاز</span><b class="big">${pctTxt(p)}</b></div>${bar(p)}
-    <div style="margin-top:12px">${t.stages.map(s=>{ const d=dm.get(k+"|"+s.id);
+    <div style="margin-top:12px">${stagesFor(t,ftype(f)).map(s=>{ const d=dm.get(k+"|"+s.id);
       return `<div class="stg ${d?"on":""}"><span class="ck">${d?"✓":""}</span><div class="grow"><b>${esc(s.name)}</b> <small>(${+s.w||0})</small>
         <small class="d">${d?(d.manual?"معلّمة باليد":"بالكشف "+dmy(d.date)):"ما خلصت"}</small></div>
-        ${d&&!d.manual?"":`<button class="btn ${d?"sec":"ok"} sm" data-s="${s.id}">${d?"إلغاء":"✓ خلصت"}</button>`}</div>`; }).join("")}</div>
+        ${d&&!d.manual?"":`<button class="btn ${d?"sec":"ok"} sm" data-s="${s.id}">${d?"إلغاء":"✓ خلصت"}</button>`}</div>`; }).join("")||`<div class="muted">${esc(t.name)} ما إله مراحل بـ${ftName(ftype(f))}.</div>`}</div>
     <div class="muted" style="margin-top:8px;line-height:1.6">المراحل اللي خلصت من الكشف اليومي بتتغيّر من الشغل نفسه. التعليم باليد للشغل اللي خلص قبل التطبيق.</div>
     <div class="actions"><button class="btn sec" id="umX">إغلاق</button></div>`);
   $("umX").onclick=closeModal;
@@ -604,7 +618,7 @@ function progRep(b,P){
     return `<tr><td>${esc(fLabel(f))}</td><td>${us.filter(u=>u.x).length||"—"}</td>${per.map(x=>{ const p=avg(us.map(u=>unitPct(P.dm,b,u,x.t))); return `<td class="${pctCls(p)}">${pctTxt(p)}</td>`; }).join("")}<td><b>${pctTxt(avg(per.map(x=>avg(us.map(u=>unitPct(P.dm,b,u,x.t))))))}</b></td></tr>`; }).join("");
   const el=document.createElement("div"); el.className="rep";
   el.innerHTML=`<h2>نسبة الإنجاز — بناية <bdi>${esc(b.name)}</bdi></h2><div class="sub">${S.project?esc(S.project)+" — ":""}${dayName(today())} ${dmy(today())}</div>
-    <table><thead><tr><th>الصنف</th><th>الإنجاز</th><th>خلصت</th></tr></thead><tbody>${per.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="${pctCls(x.pct)}"><b>${pctTxt(x.pct)}</b></td><td>${x.full} من ${P.units.length}</td></tr>`).join("")}
+    <table><thead><tr><th>الصنف</th><th>الإنجاز</th><th>خلصت</th></tr></thead><tbody>${per.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="${pctCls(x.pct)}"><b>${pctTxt(x.pct)}</b></td><td>${x.full} من ${x.n}</td></tr>`).join("")}
     <tr class="tot"><td>الإنجاز الكلي</td><td>${pctTxt(P.total)}</td><td></td></tr></tbody></table>
     <h4>حسب الطابق</h4>
     <table class="pg"><thead><tr><th>الطابق</th><th>شقق</th>${per.map(x=>`<th>${esc(x.t.name)}</th>`).join("")}<th>الكلي</th></tr></thead><tbody>${rows}</tbody></table>
@@ -714,13 +728,17 @@ function openEntry(e){
   function stagePlace(){
     const box=$("eStage");
     if(!S.trades.length){ box.innerHTML=""; return; }
-    const t=trById(trsel); if(!stById(t,stsel)) stsel="";
+    const t=trById(trsel);
+    const tys=hasFloors()&&fsel.length ? [...new Set(fsel.map(id=>ftype(flById(bById(bsel),id))))] : ["std"];
+    const avail=t?tys.flatMap(ty=>stagesFor(t,ty).map(st=>({ty,st}))):[];
+    if(!avail.some(a=>a.st.id===stsel)) stsel="";
     box.innerHTML=`<div class="field"><label>الصنف</label><div class="chips" id="eTr"><button data-t="" class="${trsel?"":"on"}">بدون</button>${S.trades.map(x=>`<button data-t="${x.id}" class="${x.id===trsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`+
-      (t&&t.stages.length?`<div class="field"><label>المرحلة</label><div class="chips" id="eSt">${t.stages.map(x=>`<button data-s="${x.id}" class="${x.id===stsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`:"")+
+      (t?(avail.length?tys.filter(ty=>stagesFor(t,ty).length).map(ty=>`<div class="field"><label>المرحلة${tys.length>1?` — ${ftName(ty)}`:""}</label><div class="chips eSt">${stagesFor(t,ty).map(x=>`<button data-s="${x.id}" class="${x.id===stsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`).join("")
+        :`<div class="muted" style="margin:-4px 0 12px">${esc(t.name)} ما إله مراحل بـ${tys.map(ftName).join(" / ")}.</div>`):"")+
       (t&&stsel?`<label class="chk" style="margin-bottom:12px"><input type="checkbox" id="eDn" ${dnsel?"checked":""}> ✓ خلصت هذه المرحلة ${hasFloors()?(ftsel.length?"بالشقق المختارة":"بكل شقق الطوابق المختارة"):""}</label>`+
         (!hasFloors()?`<div class="muted" style="margin:-6px 0 12px">💡 النسبة بتنحسب بس للبنايات اللي طوابقها وشققها مسجلة.</div>`:""):"");
     box.querySelectorAll("#eTr button").forEach(x=>x.onclick=()=>{ trsel=x.dataset.t; stsel=""; stagePlace(); prev(); });
-    box.querySelectorAll("#eSt button").forEach(x=>x.onclick=()=>{ stsel=x.dataset.s; stagePlace(); prev(); });
+    box.querySelectorAll(".eSt button").forEach(x=>x.onclick=()=>{ stsel=x.dataset.s; stagePlace(); prev(); });
     if($("eDn")) $("eDn").onchange=()=>{ dnsel=$("eDn").checked; prev(); };
     $("eWorkHint").textContent=stsel?"(اختياري)":"";
   }
@@ -773,7 +791,7 @@ function openEntry(e){
     const c=cur(), work=$("eWork").value.trim();
     if(!bsel) return $("eErr").textContent="اختار البناية";
     if(c.fl ? !c.fl.length : !c.f) return $("eErr").textContent=c.fl?"اختار الطابق":"اكتب الطابق";
-    if(trsel&&!stsel&&trById(trsel).stages.length) return $("eErr").textContent="اختار المرحلة";
+    if(trsel&&!stsel&&document.querySelector(".eSt")) return $("eErr").textContent="اختار المرحلة";
     if(!work&&!stsel) return $("eErr").textContent="اكتب الشغل";
     const id=e.id||uid(), rec={id, date:isNew?curDate:e.date, b:bsel, work, t:e.t||Date.now()};
     if(trsel){ rec.tr=trsel; rec.st=stsel; rec.dn=!!(stsel&&dnsel); }
@@ -1099,33 +1117,38 @@ $("bAdd").onclick=()=>{
 
 /* الأصناف والمراحل */
 function renderTrades(){
-  $("tList").innerHTML=S.trades.map((t,i)=>{ const W=trWeight(t);
-    return `<div class="bl"><span class="nm bo" data-t="${i}">${esc(t.name)}<small>${t.stages.length?`${t.stages.length} مراحل · مجموع الأوزان ${W}`:"بدون مراحل — اضغط لتسجيلها"}</small></span>
+  $("tList").innerHTML=S.trades.map((t,i)=>{ const parts=FTYPES.filter(([ty])=>stagesFor(t,ty).length).map(([ty,nm])=>`${nm} ${stagesFor(t,ty).length}`);
+    return `<div class="bl"><span class="nm bo" data-t="${i}">${esc(t.name)}<small>${parts.length?"مراحل: "+parts.join(" · "):"بدون مراحل — اضغط لتسجيلها"}</small></span>
       <button class="btn sec sm" data-a="up" data-i="${i}" ${i?"":"disabled"}>▲</button></div>`; }).join("")||`<div class="muted">ما في أصناف. ضيف أول صنف من تحت.</div>`;
   $("tList").querySelectorAll(".bo").forEach(x=>x.onclick=()=>tradeModal(S.trades[+x.dataset.t]));
   $("tList").querySelectorAll("button").forEach(x=>x.onclick=()=>{ const i=+x.dataset.i; S.trades.splice(i-1,0,S.trades.splice(i,1)[0]); save(); renderTrades(); });
 }
 const stageUses = (t,st) => Object.values(S.entries).filter(e=>e.tr===t.id&&e.st===st.id).length+Object.keys(S.manual).filter(k=>k.endsWith("|"+st.id)).length;
-function tradeModal(t){
-  const W=trWeight(t);
+function tradeModal(t,ty){
+  ty=ty||"std";
+  if(ty!=="std"){ t.sets=t.sets||{}; if(!Array.isArray(t.sets[ty])) t.sets[ty]=[]; }
+  const L=stagesFor(t,ty), W=wOf(L);
   modal(`<h3>${esc(t.name)}</h3>
     <div class="row" style="margin-bottom:12px"><input type="text" id="tmN" class="grow" value="${esc(t.name)}"><button class="btn sec sm" id="tmNS">تغيير الاسم</button></div>
-    <div class="sect">المراحل والأوزان <small>رتّبها حسب تسلسل الشغل. الوزن رقم، والأحسن مجموعهم يكون 100.</small></div>
-    <div id="tmS">${t.stages.map((st,i)=>`<div class="sw">
+    <div class="sect">المراحل والأوزان حسب نوع الطابق <small>كل نوع إله مراحله. النوع اللي ما إله مراحل، الصنف ما بينحسب فيه.</small></div>
+    <div class="seg seg4">${FTYPES.map(([k,nm])=>`<button data-ty="${k}" class="${k===ty?"on":""}">${nm}<small>${stagesFor(t,k).length||"—"}</small></button>`).join("")}</div>
+    <div id="tmS">${L.map((st,i)=>`<div class="sw">
         <button class="btn sec sm" data-up="${i}" ${i?"":"disabled"}>▲</button>
         <input type="text" class="grow" data-n="${i}" value="${esc(st.name)}">
         <input type="text" class="w" inputmode="decimal" data-w="${i}" value="${+st.w||0}">
-        <button class="btn bad sm" data-del="${i}">✕</button></div>`).join("")||`<div class="muted" style="padding:6px 0">ما في مراحل.</div>`}</div>
-    <div class="muted" id="tmSum" style="margin:6px 0">مجموع الأوزان: <b>${W}</b>${t.stages.length&&W!==100?" (مو 100، بس النسبة بتنحسب صح حسب المجموع)":""}</div>
-    <div class="row" style="margin-top:8px"><input type="text" id="tmAN" class="grow" placeholder="مرحلة جديدة، مثلاً: تمديد"><input type="text" id="tmAW" class="w" inputmode="decimal" placeholder="وزن" style="width:64px;text-align:center"><button class="btn ok sm" id="tmA">+</button></div>
+        <button class="btn bad sm" data-del="${i}">✕</button></div>`).join("")||`<div class="muted" style="padding:6px 0">ما في مراحل لـ${ftName(ty)}${ty==="std"?"":" (الصنف ما بينحسب فيه)"}.</div>`}</div>
+    <div class="muted" id="tmSum" style="margin:6px 0">مجموع أوزان ${ftName(ty)}: <b>${W}</b>${L.length&&W!==100?" (مو 100، بس النسبة بتنحسب صح حسب المجموع)":""}</div>
+    <div class="row" style="margin-top:8px"><input type="text" id="tmAN" class="grow" placeholder="مرحلة جديدة لـ${ftName(ty)}"><input type="text" id="tmAW" class="w" inputmode="decimal" placeholder="وزن" style="width:64px;text-align:center"><button class="btn ok sm" id="tmA">+</button></div>
+    ${ty!=="std"&&!L.length&&t.stages.length?`<button class="btn sec sm" id="tmCp" style="margin-top:8px">📑 انسخ مراحل الشقق هون وعدّلها</button>`:""}
     <div class="err" id="tmE"></div>
     <div class="actions"><button class="btn ok" id="tmSave">حفظ التعديلات</button><button class="btn sec" id="tmX">إغلاق</button></div>
     <div class="actions"><button class="btn bad" id="tmD">حذف الصنف</button></div>`);
   const collect=()=>{ let ok=true;
     document.querySelectorAll("#tmS [data-n]").forEach(el=>{ const i=+el.dataset.n, nm=el.value.trim(), w=parseFloat(nd(document.querySelector(`#tmS [data-w="${i}"]`).value));
-      if(!nm||!(w>=0)) ok=false; else { t.stages[i].name=nm; t.stages[i].w=w; } });
+      if(!nm||!(w>=0)) ok=false; else { L[i].name=nm; L[i].w=w; } });
     return ok; };
-  const done=()=>{ save(); renderTrades(); tradeModal(t); };
+  const done=(nty)=>{ save(); renderTrades(); tradeModal(t,nty||ty); };
+  document.querySelectorAll(".seg4 button").forEach(el=>el.onclick=()=>{ if(!collect()){ $("tmE").textContent="كل مرحلة لازم إلها اسم ووزن (رقم)"; return; } done(el.dataset.ty); });
   $("tmX").onclick=()=>{ if(collect()) save(); renderTrades(); closeModal(); };
   $("tmSave").onclick=()=>{ if(!collect()){ $("tmE").textContent="كل مرحلة لازم إلها اسم ووزن (رقم)"; return; } save(); renderTrades(); closeModal(); toast("انحفظ ✓"); };
   $("tmNS").onclick=()=>{ const nm=$("tmN").value.trim(); if(!nm) return;
@@ -1133,18 +1156,19 @@ function tradeModal(t){
   $("tmA").onclick=()=>{ const nm=$("tmAN").value.trim(), w=parseFloat(nd($("tmAW").value));
     if(!nm){ $("tmE").textContent="اكتب اسم المرحلة"; return; }
     if(!(w>=0)){ $("tmE").textContent="اكتب وزن المرحلة (رقم)"; return; }
-    collect(); t.stages.push({id:"s"+uid(),name:nm,w}); done(); setTimeout(()=>{ const el=$("tmAN"); if(el) el.focus(); },50); };
-  document.querySelectorAll("#tmS [data-up]").forEach(el=>el.onclick=()=>{ const i=+el.dataset.up; collect(); t.stages.splice(i-1,0,t.stages.splice(i,1)[0]); done(); });
-  document.querySelectorAll("#tmS [data-del]").forEach(el=>el.onclick=()=>{ const i=+el.dataset.del, st=t.stages[i], u=stageUses(t,st);
+    collect(); L.push({id:"s"+uid(),name:nm,w}); done(); setTimeout(()=>{ const el=$("tmAN"); if(el) el.focus(); },50); };
+  if($("tmCp")) $("tmCp").onclick=()=>{ t.stages.forEach(st=>L.push({id:"s"+uid(),name:st.name,w:st.w})); done(); };
+  document.querySelectorAll("#tmS [data-up]").forEach(el=>el.onclick=()=>{ const i=+el.dataset.up; collect(); L.splice(i-1,0,L.splice(i,1)[0]); done(); });
+  document.querySelectorAll("#tmS [data-del]").forEach(el=>el.onclick=()=>{ const i=+el.dataset.del, st=L[i], u=stageUses(t,st);
     if(u){ $("tmE").textContent=`مرحلة "${st.name}" عليها ${u} شغل مسجل، ما بتنحذف. فيك تغيّر اسمها أو وزنها.`; return; }
-    collect(); t.stages.splice(i,1); done(); });
+    collect(); L.splice(i,1); done(); });
   $("tmD").onclick=()=>{ const u=Object.values(S.entries).filter(e=>e.tr===t.id).length;
     if(u){ $("tmE").textContent=`على هذا الصنف ${u} شغل مسجل، ما بينحذف`; return; }
     if(!confirm("حذف صنف "+t.name+"؟")) return; S.trades=S.trades.filter(x=>x!==t); save(); renderTrades(); closeModal(); };
 }
 $("tAdd").onclick=()=>{ const nm=$("tNew").value.trim(); if(!nm) return;
   if(S.trades.some(t=>t.name===nm)){ toast("الصنف موجود"); return; }
-  const t={id:"t"+uid(),name:nm,stages:[]}; S.trades.push(t); save(); $("tNew").value=""; renderTrades(); tradeModal(t); };
+  const t={id:"t"+uid(),name:nm,stages:[],sets:{bas:[],vil:[],roof:[]}}; S.trades.push(t); save(); $("tNew").value=""; renderTrades(); tradeModal(t); };
 
 /* نسخة احتياطية */
 function backupJson(){ return JSON.stringify({app:"building-works",v:1,at:new Date().toISOString(),data:{project:S.project,buildings:S.buildings,entries:S.entries,trades:S.trades,manual:S.manual}}); }
@@ -1180,7 +1204,9 @@ $("bkFile").onchange=async()=>{
   S.buildings.forEach(b=>{ if(!Array.isArray(b.floors)) b.floors=[]; b.floors.forEach(f=>{ if(!Array.isArray(f.flats)) f.flats=[]; }); });
   if(!S.project&&j.data.project) S.project=j.data.project;
   (j.data.trades||[]).forEach(t=>{ if(!t||!t.id) return; const o=trById(t.id);
-    if(!o){ S.trades.push(t); return; } (t.stages||[]).forEach(st=>{ if(!o.stages.some(y=>y.id===st.id)) o.stages.push(st); }); });
+    if(!o){ S.trades.push(t); return; }
+    FTYPES.forEach(([ty])=>{ const src=ty==="std"?(t.stages||[]):((t.sets||{})[ty]||[]), dst=ty==="std"?o.stages:(o.sets[ty]=o.sets[ty]||[]);
+      src.forEach(st=>{ if(!dst.some(y=>y.id===st.id)) dst.push(st); }); }); });
   Object.assign(S.manual, j.data.manual||{});
   save(); linkOld(); renderSettings(); renderDay(); toast(`انضاف ${neu} سطر ✓`);
 };

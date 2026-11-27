@@ -104,7 +104,8 @@
   .flr span{color:var(--muted);font-size:20px}
   .seg{display:flex;background:#e8ecf2;border-radius:10px;padding:3px;margin-bottom:12px}
   .seg button{flex:1;border:0;background:none;padding:9px;border-radius:8px;font-weight:600;color:var(--muted);cursor:pointer}
-  .seg4 button{padding:7px 1px;font-size:11.5px;line-height:1.3}
+  .seg4{flex-wrap:wrap}
+  .seg4 button{padding:7px 1px;font-size:11.5px;line-height:1.3;flex:1 0 30%}
   .seg4 button small{display:block;font-weight:400;font-size:11px}
   .seg button.on{background:#fff;color:var(--pri);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .pgh{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -304,7 +305,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "2.8";
+const APP_VERSION = "2.9";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -334,7 +335,7 @@ function load(){
   S.lastBackup = S.lastBackup||0;
   S.trades = Array.isArray(S.trades) ? S.trades : [];
   S.trades.forEach(t=>{ if(!Array.isArray(t.stages)) t.stages=[]; t.sets=t.sets&&typeof t.sets==="object"?t.sets:{};
-    ["cor","bas","vil","roof"].forEach(k=>{ if(!Array.isArray(t.sets[k])) t.sets[k]=[]; }); });
+    ["cor","sh","bas","vil","roof"].forEach(k=>{ if(!Array.isArray(t.sets[k])) t.sets[k]=[]; }); });
   S.manual = S.manual && typeof S.manual==="object" ? S.manual : {};
   S.buildings.forEach(b=>{ if(!Array.isArray(b.floors)) b.floors=[]; b.floors.forEach(f=>{ if(!Array.isArray(f.flats)) f.flats=[]; }); });
   fixJoinedFlats();
@@ -471,15 +472,19 @@ function stageTag(e){ const l=stageLabel(e); return l?`<span class="tag2 ${e.dn&
 const trById = id => S.trades.find(t=>t.id===id);
 /* لكل صنف مراحل حسب نوع الطابق: الشقق والأرضي (stages) / السرداب / فيلا السطح / السطح (sets)
    نوع بدون مراحل = الصنف ما بينحسب فيه */
-const FTYPES=[["std","الشقق والأرضي"],["cor","الممر"],["bas","السرداب"],["vil","فيلا السطح"],["roof","السطح"]];
-const CNT={std:"الشقق",cor:"الممرات",bas:"السرداب",vil:"الفيلات",roof:"السطح"};
+const FTYPES=[["std","الشقق والأرضي"],["cor","الممر"],["sh","المنور"],["bas","السرداب"],["vil","فيلا السطح"],["roof","السطح"]];
+const CNT={std:"الشقق",cor:"الممرات",sh:"المناور",bas:"السرداب",vil:"الفيلات",roof:"السطح"};
 const ftName = ty => (FTYPES.find(x=>x[0]===ty)||[,""])[1];
 const ftype = f => f&&(f.k==="bas"||f.k==="vil"||f.k==="roof") ? f.k : "std";
 // الممر: وحدة بالطابق إلها مراحل الممر (بيتعرّف من اسمه "ممر" أو من الإعدادات)
-const isCor = x => !!x && (x.k==="cor" || (x.k!=="flat" && /ممر/.test(x.name)));
-const utype = (f,x) => isCor(x) ? "cor" : ftype(f);
-const flLbl = t => /^ممر/.test(t)||/ط.+:/.test(t) ? t : "شقة "+t;
-const uName = x => x ? (isCor(x) ? x.name : "شقة "+x.name) : "الطابق";
+const isCor = x => !!x && (x.k==="cor" || (x.k!=="flat" && x.k!=="sh" && /ممر/.test(x.name)));
+// المنور (الشفت): وحدة لكل شقة بالطابق إلها مراحل المنور؛ of = الشقة التابع لها
+const isSh = x => !!x && (x.k==="sh" || (x.k!=="flat" && x.k!=="cor" && /منور|شفت/.test(x.name)));
+const isAux = x => isCor(x)||isSh(x);
+const utype = (f,x) => isSh(x) ? "sh" : isCor(x) ? "cor" : ftype(f);
+const flLbl = t => /^(ممر|منور|شفت)/.test(t)||/ط.+:/.test(t) ? t : "شقة "+t;
+const uName = x => x ? (isAux(x) ? x.name : "شقة "+x.name) : "الطابق";
+const shaftOf = (f,x) => x&&!isAux(x) ? f.flats.find(y=>isSh(y)&&(y.of===x.id||(!y.of&&y.name.replace(/^(منور|شفت)\s*/,"")===x.name))) : null;
 const stagesFor = (t,ty) => ty==="std" ? t.stages : ((t.sets||{})[ty]||[]);
 const allStages = t => FTYPES.flatMap(([ty])=>stagesFor(t,ty));
 const stById = (t,id) => t&&allStages(t).find(s=>s.id===id);
@@ -548,6 +553,8 @@ function renderFlatPage(b,P,trs,f,x){
       <div class="pgh" style="margin-top:10px"><b>${esc(fLabel(f))}${x?` · ${esc(uName(x))}`:""}</b><b class="big">${pctTxt(tot)}</b></div>${bar(tot)}
       <div class="muted" style="margin-top:6px">نسبة إنجاز الشقة الكلية = متوسط نسب الأصناف</div>
       <div class="actions" style="margin-top:10px"><button class="btn sec sm" id="fpPv">🔍 معاينة</button><button class="btn ok sm" id="fpSh">📤 إرسال PDF</button></div></div>`+
+    (()=>{ const sx=shaftOf(f,x); if(!sx) return ""; const st=unitTotal(P.dm,b,{f,x:sx},S.trades.filter(t=>trWeight(t)>0));
+      return `<div class="card tcard" id="fpShaft" data-x="${sx.id}"><div class="pgh"><b>${esc(sx.name)} <small class="muted">(منور الشقة)</small></b><b>${pctTxt(st)}</b></div>${bar(st)}<div class="muted" style="margin-top:4px">اضغط لعرض مراحل المنور</div></div>`; })()+
     trs.map(t=>{ const p=unitPct(P.dm,b,u,t);
       return `<div class="card"><div class="pgh"><b>${esc(t.name)}</b><b>${pctTxt(p)}</b></div>${bar(p)}
         <div style="margin-top:8px">${stagesFor(t,utype(f,x)).map(s=>stageRow(P.dm,k,s,"data-mk")).join("")}</div></div>`; }).join("");
@@ -584,6 +591,7 @@ function renderProgress(){
     if(f&&(x||!progU.x)){
       box.innerHTML=h+renderFlatPage(b,P,trs,f,x); hookB(); hookSeg();
       $("fpBack").onclick=()=>{ progU=null; renderProgress(); };
+      if($("fpShaft")) $("fpShaft").onclick=()=>{ progU={f:f.id,x:$("fpShaft").dataset.x}; renderProgress(); window.scrollTo(0,0); };
       $("fpPv").onclick=()=>openPreview(flatRep(b,P,trs,f,x),`flat-${b.name}-${fShort(f)}${x?"-"+x.name:""}.pdf`.replace(/[^\w.\-]/g,""));
       $("fpSh").onclick=()=>sharePdf(null,`flat-${b.name}-${fShort(f)}${x?"-"+x.name:""}.pdf`.replace(/[^\w.\-]/g,""),flatRep(b,P,trs,f,x));
       box.querySelectorAll("[data-mk]").forEach(el=>el.onclick=()=>{ const kk=el.dataset.mk; if(S.manual[kk]) delete S.manual[kk]; else S.manual[kk]=today(); save(); renderProgress(); });
@@ -637,7 +645,7 @@ const progName = b => `progress-${b.name.replace(/[^\w\-]/g,"")}-${today()}.pdf`
 function progRep(b,P){
   const fs=floorsOf(b), per=P.per, tys=FTYPES.map(z=>z[0]).filter(ty=>per.some(x=>x.by[ty]));
   const rows=fs.map(f=>{ const us=P.units.filter(u=>u.f===f);
-    return `<tr><td>${esc(fLabel(f))}</td><td>${us.filter(u=>u.x&&!isCor(u.x)).length||"—"}</td>${per.map(x=>{ const p=avg(us.map(u=>unitPct(P.dm,b,u,x.t))); return `<td class="${pctCls(p)}">${pctTxt(p)}</td>`; }).join("")}<td><b>${pctTxt(avg(per.map(x=>avg(us.map(u=>unitPct(P.dm,b,u,x.t))))))}</b></td></tr>`; }).join("");
+    return `<tr><td>${esc(fLabel(f))}</td><td>${us.filter(u=>u.x&&!isAux(u.x)).length||"—"}</td>${per.map(x=>{ const p=avg(us.map(u=>unitPct(P.dm,b,u,x.t))); return `<td class="${pctCls(p)}">${pctTxt(p)}</td>`; }).join("")}<td><b>${pctTxt(avg(per.map(x=>avg(us.map(u=>unitPct(P.dm,b,u,x.t))))))}</b></td></tr>`; }).join("");
   const el=document.createElement("div"); el.className="rep";
   el.innerHTML=`<h2>نسبة الإنجاز — بناية <bdi>${esc(b.name)}</bdi></h2><div class="sub">${S.project?esc(S.project)+" — ":""}${dayName(today())} ${dmy(today())}</div>
     <table><thead><tr><th>الصنف</th><th>الإنجاز</th>${tys.map(ty=>`<th>${CNT[ty]} المنتهية</th>`).join("")}</tr></thead><tbody>${per.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="${pctCls(x.pct)}"><b>${pctTxt(x.pct)}</b></td>${tys.map(ty=>`<td>${x.by[ty]?`${x.by[ty].full} من ${x.by[ty].n}`:"—"}</td>`).join("")}</tr>`).join("")}
@@ -1066,7 +1074,7 @@ function bldModal(b){
     <div class="row" style="margin-bottom:12px"><input type="text" id="bmN" class="grow" value="${esc(b.name)}"><button class="btn sec sm" id="bmNS">تغيير الاسم</button></div>
     <div class="sect">الطوابق (${fs.length}) <small>اضغط على الطابق لتسجيل شققه</small></div>
     <div id="bmF">${fs.length?fs.map(f=>{ const fl=flatsOf(f);
-      return `<div class="flr" data-f="${f.id}"><div><b>${esc(fLabel(f))}</b><small>${fl.length?`${fl.length} شقة: ${esc(fl.map(x=>x.name).join("، "))}`:"بدون شقق"}</small></div><span>‹</span></div>`; }).join(""):`<div class="muted" style="padding:8px 0">لا توجد طوابق. يمكن إضافتها من الأسفل.</div>`}</div>
+      return `<div class="flr" data-f="${f.id}"><div><b>${esc(fLabel(f))}</b><small>${fl.length?`${fl.filter(x=>!isAux(x)).length} شقة: ${esc(fl.map(x=>x.name).join("، "))}`:"بدون شقق"}</small></div><span>‹</span></div>`; }).join(""):`<div class="muted" style="padding:8px 0">لا توجد طوابق. يمكن إضافتها من الأسفل.</div>`}</div>
     <div class="sect">إضافة طوابق</div>
     <div class="three">
       <button class="btn sec sm" id="aB">+ سرداب${nB?" "+(nB+1):""}</button>
@@ -1074,6 +1082,7 @@ function bldModal(b){
       <button class="btn sec sm" id="aV" ${hasV?"disabled":""}>+ فيلا السطح</button>
       <button class="btn sec sm" id="aR" ${hasR?"disabled":""}>+ السطح</button>
       <button class="btn sec sm" id="aCor" style="grid-column:1/-1">+ ممر لجميع الطوابق التي تحتوي على شقق</button>
+      <button class="btn sec sm" id="aSh" style="grid-column:1/-1">+ منور لكل شقة في جميع الطوابق</button>
     </div>
     <div class="row" style="margin-top:10px"><span class="muted">الطوابق من</span><input type="text" id="aF" inputmode="numeric" value="${nextN}" style="width:64px;text-align:center"><span class="muted">إلى</span><input type="text" id="aT" inputmode="numeric" placeholder="20" style="width:64px;text-align:center"><button class="btn ok sm" id="aN">+ إضافة</button></div>
     <div class="row" style="margin-top:10px"><input type="text" id="aC" class="grow" placeholder="اسم آخر، مثلاً: ميزانين"><button class="btn sec sm" id="aCA">+ إضافة</button></div>
@@ -1090,6 +1099,8 @@ function bldModal(b){
   $("aG").onclick=()=>{ add("",0,"gnd"); again(); };
   $("aV").onclick=()=>{ add("",10000,"vil"); again(); };
   $("aR").onclick=()=>{ add("",11000,"roof"); again(); };
+  $("aSh").onclick=()=>{ let n=0; b.floors.forEach(f=>f.flats.filter(x=>!isAux(x)).forEach(x=>{ if(!shaftOf(f,x)){ f.flats.push({id:"x"+uid(),name:"منور "+x.name,k:"sh",of:x.id}); n++; } }));
+    if(!n){ $("aE").textContent="جميع الشقق لديها منور"; return; } again(); toast(`تمت إضافة ${n} منور ✓`); };
   $("aCor").onclick=()=>{ let n=0; b.floors.forEach(f=>{ if(f.flats.length&&!f.flats.some(isCor)){ f.flats.push({id:"x"+uid(),name:"ممر",k:"cor"}); n++; } });
     if(!n){ $("aE").textContent="جميع الطوابق التي تحتوي على شقق لديها ممر"; return; } again(); toast(`تمت إضافة ممر إلى ${n} طابق ✓`); };
   $("aN").onclick=()=>{ const a=parseInt(nd($("aF").value)), z=nd($("aT").value).trim()?parseInt(nd($("aT").value)):a;
@@ -1140,14 +1151,16 @@ function flatModal(b,f,x){
   const used=flatUses(b,f,x);
   modal(`<h3>${esc(uName(x))} · ${esc(fLabel(f))}</h3>
     <div class="row"><input type="text" id="ftN" class="grow" value="${esc(x.name)}"></div>
-    <label class="chk" style="margin-top:10px"><input type="checkbox" id="ftC" ${isCor(x)?"checked":""}> هذه الوحدة ممر (تُطبَّق عليها مراحل وأوزان الممر)</label>
+    <div class="field" style="margin-top:10px"><label>نوع الوحدة</label><div class="chips" id="ftK">${[["flat","شقة"],["cor","ممر"],["sh","منور"]].map(([k,nm])=>`<button data-k="${k}" class="${(isSh(x)?"sh":isCor(x)?"cor":"flat")===k?"on":""}">${nm}</button>`).join("")}</div>
+      <div class="muted" style="margin-top:4px">الممر والمنور تُطبَّق عليهما مراحلهما وأوزانهما الخاصة.</div></div>
     ${used?`<div class="muted" style="margin-top:8px">يوجد ${used} عمل مسجل على هذه الشقة. تعديل الرقم يُطبَّق عليها، ولا يمكن الحذف.</div>`:""}
     <div class="err" id="ftE"></div>
     <div class="actions"><button class="btn ok" id="ftS">حفظ</button>${used?"":`<button class="btn bad" id="ftD">حذف</button>`}<button class="btn sec" id="ftB">رجوع</button></div>`);
   $("ftB").onclick=()=>floorModal(b,f);
   $("ftS").onclick=()=>{ const nm=nd($("ftN").value).trim(); if(!nm) return;
     if(f.flats.some(y=>y!==x&&y.name===nm)){ $("ftE").textContent="توجد شقة أخرى بالرقم نفسه في هذا الطابق"; return; }
-    x.name=nm; x.k=$("ftC").checked?"cor":"flat"; afterLayout(); floorModal(b,f); };
+    x.name=nm; x.k=($("ftK").querySelector(".on")||{dataset:{k:"flat"}}).dataset.k; afterLayout(); floorModal(b,f); };
+  $("ftK").querySelectorAll("button").forEach(el=>el.onclick=()=>$("ftK").querySelectorAll("button").forEach(y=>y.classList.toggle("on",y===el)));
   if($("ftD")) $("ftD").onclick=()=>{ f.flats=f.flats.filter(y=>y!==x); afterLayout(); floorModal(b,f); };
 }
 
@@ -1215,7 +1228,7 @@ function tradeModal(t,ty){
 }
 $("tAdd").onclick=()=>{ const nm=$("tNew").value.trim(); if(!nm) return;
   if(S.trades.some(t=>t.name===nm)){ toast("الصنف موجود مسبقاً"); return; }
-  const t={id:"t"+uid(),name:nm,stages:[],sets:{cor:[],bas:[],vil:[],roof:[]}}; S.trades.push(t); save(); $("tNew").value=""; renderTrades(); tradeModal(t); };
+  const t={id:"t"+uid(),name:nm,stages:[],sets:{cor:[],sh:[],bas:[],vil:[],roof:[]}}; S.trades.push(t); save(); $("tNew").value=""; renderTrades(); tradeModal(t); };
 
 /* نسخة احتياطية */
 function backupJson(){ return JSON.stringify({app:"building-works",v:1,at:new Date().toISOString(),data:{project:S.project,buildings:S.buildings,entries:S.entries,trades:S.trades,manual:S.manual}}); }

@@ -102,6 +102,33 @@
   .flr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;margin-bottom:6px;background:#f3f5f9;border-radius:9px;cursor:pointer}
   .flr small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
   .flr span{color:var(--muted);font-size:20px}
+  .pgh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .pgh .big{font-size:22px;color:var(--pri)}
+  .pbar{height:10px;background:#e8ecf2;border-radius:6px;overflow:hidden;margin-top:6px}
+  .pbar i{display:block;height:100%;background:var(--acc)}
+  .pbar i.full{background:var(--ok)}
+  .tcard{cursor:pointer}
+  .pc{font-weight:700;font-size:14px;padding:2px 9px;border-radius:9px}
+  .full{color:var(--ok)} .part{color:#8a5a06} .zero{color:#9aa3b2}
+  .pc.full{background:#dcf3e5} .pc.part{background:#fdf0d5} .pc.zero{background:#eef1f6}
+  .units{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .un{border:1px solid #cfd4dc;background:#fff;border-radius:9px;padding:5px 9px;min-width:62px;cursor:pointer;line-height:1.3}
+  .un b{display:block;font-size:14px;color:var(--ink)} .un span{font-size:12px}
+  .un.full{background:#dcf3e5;border-color:#9fd8b5} .un.part{background:#fdf0d5;border-color:#efd197}
+  .stg{display:flex;align-items:center;gap:10px;padding:9px 4px;border-top:1px solid var(--line)}
+  .stg .ck{width:28px;height:28px;flex:0 0 28px;border-radius:8px;border:2px solid #cfd4dc;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+  .stg.on .ck{background:var(--ok);border-color:var(--ok)}
+  .stg small{color:var(--muted);font-size:12px} .stg .d{display:block}
+  .tag2{display:inline-block;margin-top:4px;font-size:12px;padding:2px 8px;border-radius:9px;background:#e3eefc;color:#1d4ed8}
+  .tag2.dn{background:#dcf3e5;color:var(--ok)}
+  .chk{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;background:#f3f5f9;font-weight:600;cursor:pointer}
+  .chk input{width:22px;height:22px}
+  .rep td.full{color:#1e8e4e;font-weight:700} .rep td.part{color:#8a5a06} .rep td.zero{color:#999}
+  .rep table.pg td,.rep table.pg th{padding:4px 2px;font-size:12px}
+  .sw{display:flex;gap:6px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+  .sw:first-child{border-top:0}
+  .sw .nm{flex:1;font-weight:600}
+  .sw input.w{width:62px;text-align:center;padding:8px 4px}
   .three{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .three .btn{padding:9px 4px;font-size:13px}
   .bl.off .nm{color:var(--muted);font-weight:400;text-decoration:line-through}
@@ -113,7 +140,7 @@
   .rep h2{font-size:18px;text-align:center;margin:0 0 2px}
   .rep .sub{text-align:center;color:#444;font-size:13px;margin-bottom:10px}
   .rep h3{font-size:15px;margin:14px 0 6px;padding:5px 8px;background:#dcebe5;border-radius:6px;display:flex;justify-content:space-between}
-  .rep h3 span{font-weight:400;font-size:13px}
+  .rep h3 span:last-child{font-weight:400;font-size:13px}
   .rep h4{font-size:14px;margin:10px 0 4px}
   .rep table{width:100%;border-collapse:collapse;font-size:13px}
   .rep th,.rep td{border:1px solid #9aa3b2;padding:5px 4px;text-align:center}
@@ -169,12 +196,14 @@
       <div class="daylabel" id="dLabel"></div>
       <div class="stats">
         <div class="stat"><b id="sLines">0</b><span>أعمال</span></div>
-        <div class="stat"><b id="sMasters">0</b><span>خلفات</span></div>
-        <div class="stat"><b id="sWorkers">0</b><span>عمال</span></div>
+        <div class="stat"><b id="sDone">0</b><span>مراحل خلصت</span></div>
       </div>
     </div>
     <div id="dayList"></div>
   </section>
+
+  <!-- ===== الإنجاز ===== -->
+  <section id="tab-progress" class="hidden"><div id="progBox"></div></section>
 
   <!-- ===== التقارير ===== -->
   <section id="tab-reports" class="hidden">
@@ -221,6 +250,15 @@
       <div class="muted" style="margin-top:6px;line-height:1.7">اضغط على اسم البناية لتسجيل طوابقها وشققها. البناية اللي عليها شغل ما تنحذف، بس تنخفى.</div>
     </div>
     <div class="card">
+      <h2>الأصناف والمراحل</h2>
+      <div id="tList"></div>
+      <div class="row" style="margin-top:10px">
+        <input type="text" id="tNew" class="grow" placeholder="صنف جديد (مثال: الكهرباء)">
+        <button class="btn" id="tAdd">إضافة</button>
+      </div>
+      <div class="muted" style="margin-top:6px;line-height:1.7">لكل صنف مراحل، ولكل مرحلة وزن (مثلاً التمديد 40). نسبة الشقة = مجموع أوزان المراحل اللي خلصت ÷ مجموع كل الأوزان.</div>
+    </div>
+    <div class="card">
       <h2>نسخة احتياطية</h2>
       <div class="muted" style="line-height:1.7">كل البيانات محفوظة على هذا الموبايل بس. إذا انكسر أو انمسح التطبيق تروح البيانات، فخلّي نسخة احتياطية كل فترة وابعثها لنفسك على الواتساب أو الإيميل.</div>
       <div class="muted" id="lastBk" style="margin:8px 0"></div>
@@ -246,6 +284,7 @@
 
 <nav class="tabs">
   <button data-tab="day" class="on"><span class="ic">📋</span>الكشف اليومي</button>
+  <button data-tab="progress"><span class="ic">📊</span>الإنجاز</button>
   <button data-tab="reports"><span class="ic">📄</span>التقارير</button>
   <button data-tab="settings"><span class="ic">⚙️</span>الإعدادات</button>
 </nav>
@@ -255,7 +294,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "1.2";
+const APP_VERSION = "2.0";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -283,6 +322,9 @@ function load(){
   S.buildings = Array.isArray(S.buildings)&&S.buildings.length ? S.buildings : [{id:"D1",name:"D1"},{id:"D2",name:"D2"}];
   S.entries = S.entries && typeof S.entries==="object" ? S.entries : {};
   S.lastBackup = S.lastBackup||0;
+  S.trades = Array.isArray(S.trades) ? S.trades : [];
+  S.trades.forEach(t=>{ if(!Array.isArray(t.stages)) t.stages=[]; });
+  S.manual = S.manual && typeof S.manual==="object" ? S.manual : {};
   S.buildings.forEach(b=>{ if(!Array.isArray(b.floors)) b.floors=[]; b.floors.forEach(f=>{ if(!Array.isArray(f.flats)) f.flats=[]; }); });
 }
 function save(){
@@ -380,15 +422,122 @@ function byBuilding(list){
 }
 const sumM = l => l.reduce((s,e)=>s+(+e.m||0),0);
 const sumW = l => l.reduce((s,e)=>s+(+e.w||0),0);
+function stageLabel(e){ const t=trById(e.tr); if(!t) return ""; const st=stById(t,e.st); return t.name+(st?" · "+st.name:""); }
+function stageTag(e){ const l=stageLabel(e); return l?`<span class="tag2 ${e.dn&&e.st?"dn":""}">${esc(l)}${e.dn&&e.st?" ✓ خلصت":""}</span>`:""; }
+
+/* ---------- الأصناف والمراحل ونسبة الإنجاز ----------
+   trade {id,name,stages:[{id,name,w}]}  (w = وزن المرحلة)
+   الإنجاز ينحسب من الكشف اليومي: كل شغل معلّم "خلصت المرحلة" بيعلّم المرحلة على:
+     الشقة إذا اختار شقة، أو كل شقق الطابق (أو الطوابق) إذا كان عام.
+   الطابق اللي ما إله شقق (سرداب، سطح...) بينحسب وحدة لحاله.
+   S.manual: مراحل معلّمة باليد (لشغل خلص قبل التطبيق)  key = b|f|x|stage */
+const trById = id => S.trades.find(t=>t.id===id);
+const stById = (t,id) => t&&t.stages.find(s=>s.id===id);
+const trWeight = t => t.stages.reduce((a,s)=>a+(+s.w||0),0);
+function unitsOf(b){ const out=[];
+  floorsOf(b).forEach(f=>{ const fl=flatsOf(f); if(fl.length) fl.forEach(x=>out.push({f,x})); else out.push({f,x:null}); });
+  return out; }
+const uKey = (b,f,x) => b.id+"|"+f.id+"|"+(x?x.id:"");
+function entUnits(e){ // الوحدات اللي بيغطيها الشغل
+  const b=bById(e.b), fs=entFloors(e); if(!b||!fs) return [];
+  if(fs.length===1&&e.ft){ const x=fs[0].flats.find(y=>y.id===e.ft); return x?[{f:fs[0],x}]:[]; }
+  const out=[]; fs.forEach(f=>{ if(f.flats.length) f.flats.forEach(x=>out.push({f,x})); else out.push({f,x:null}); }); return out;
+}
+function doneMap(b){ // key|stage → {date, eid} أو {manual}
+  const m=new Map();
+  Object.values(S.entries).filter(e=>e.b===b.id&&e.dn&&e.st).sort((a,c)=>a.date<c.date?-1:1).forEach(e=>{
+    entUnits(e).forEach(u=>{ const k=uKey(b,u.f,u.x)+"|"+e.st; if(!m.has(k)) m.set(k,{date:e.date,eid:e.id}); }); });
+  Object.keys(S.manual).forEach(k=>{ if(k.startsWith(b.id+"|")&&!m.has(k)) m.set(k,{manual:true,date:S.manual[k]}); });
+  return m;
+}
+function unitPct(dm,b,u,t){ const W=trWeight(t); if(!W) return 0;
+  const k=uKey(b,u.f,u.x); return t.stages.reduce((a,s)=>a+(dm.has(k+"|"+s.id)?(+s.w||0):0),0)/W*100; }
+const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+const pctTxt = p => (p>=99.95?100:p<=0?0:Math.max(1,Math.floor(p)))+"%";
+const pctCls = p => p>=99.95?"full":p>0?"part":"zero";
+function bldProgress(b){
+  const dm=doneMap(b), units=unitsOf(b), trs=S.trades.filter(t=>trWeight(t)>0);
+  const per=trs.map(t=>{ const ps=units.map(u=>unitPct(dm,b,u,t)); return {t, pct:avg(ps), full:ps.filter(p=>p>=99.95).length}; });
+  return {dm, units, per, total:avg(per.map(x=>x.pct))};
+}
+
+let progB=null, progT=null;
+function renderProgress(){
+  const box=$("progBox"), vis=S.buildings.filter(b=>!b.hidden);
+  if(!vis.some(b=>b.id===progB)) progB=vis[0]&&vis[0].id;
+  const b=bById(progB);
+  let h=`<div class="card"><div class="chips" id="pgB">${vis.map(x=>`<button data-id="${esc(x.id)}" class="${x.id===progB?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`;
+  if(!b){ box.innerHTML=h+`<div class="card empty">ماكو بنايات</div>`; return; }
+  const units=unitsOf(b), trs=S.trades.filter(t=>trWeight(t)>0);
+  if(!units.length||!trs.length){
+    box.innerHTML=h+`<div class="card empty">${!units.length?`سجّل طوابق وشقق بناية <bdi>${esc(b.name)}</bdi> من الإعدادات.<br>`:""}${!trs.length?"سجّل الأصناف ومراحلها وأوزانها من الإعدادات (مثلاً الكهرباء).":""}</div>`;
+    hookB(); return;
+  }
+  const P=bldProgress(b), t=progT&&trById(progT);
+  if(!t){
+    h+=`<div class="card"><div class="pgh"><b>بناية <bdi>${esc(b.name)}</bdi> — الإنجاز الكلي</b><b class="big">${pctTxt(P.total)}</b></div>${bar(P.total)}
+      <div class="muted" style="margin-top:6px">${units.length} شقة/وحدة · ${trs.length} أصناف</div>
+      <div class="actions" style="margin-top:10px"><button class="btn sec sm" id="pgPv">🔍 معاينة</button><button class="btn ok sm" id="pgSh">📤 إرسال PDF</button></div></div>`+
+      P.per.map(x=>`<div class="card tcard" data-t="${x.t.id}"><div class="pgh"><b>${esc(x.t.name)}</b><b>${pctTxt(x.pct)}</b></div>${bar(x.pct)}
+        <div class="muted" style="margin-top:6px">خلصت بـ ${x.full} من ${units.length} · اضغط للتفاصيل</div></div>`).join("");
+    box.innerHTML=h; hookB();
+    box.querySelectorAll(".tcard").forEach(c=>c.onclick=()=>{ progT=c.dataset.t; renderProgress(); window.scrollTo(0,0); });
+    $("pgPv").onclick=()=>openPreview(progRep(b,P),progName(b));
+    $("pgSh").onclick=()=>sharePdf(null,progName(b),progRep(b,P));
+    return;
+  }
+  const x=P.per.find(y=>y.t.id===t.id)||{pct:0,full:0};
+  h+=`<div class="card"><div class="row" style="justify-content:space-between"><button class="btn sec sm" id="pgBack">→ رجوع</button><b><bdi>${esc(b.name)}</bdi></b></div>
+    <div class="pgh" style="margin-top:10px"><b>${esc(t.name)}</b><b class="big">${pctTxt(x.pct)}</b></div>${bar(x.pct)}
+    <div class="muted" style="margin-top:6px">${t.stages.map(s=>`${esc(s.name)} ${+s.w||0}`).join(" · ")}</div></div>`;
+  h+=floorsOf(b).slice().reverse().map(f=>{ const us=units.filter(u=>u.f===f), ps=us.map(u=>unitPct(P.dm,b,u,t));
+    return `<div class="card fcard"><div class="pgh"><b>${esc(fLabel(f))}</b><span class="pc ${pctCls(avg(ps))}">${pctTxt(avg(ps))}</span></div>
+      <div class="units">${us.map((u,i)=>`<button class="un ${pctCls(ps[i])}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${u.x?esc(u.x.name):"الطابق"}</b><span>${pctTxt(ps[i])}</span></button>`).join("")}</div></div>`; }).join("");
+  box.innerHTML=h; hookB();
+  $("pgBack").onclick=()=>{ progT=null; renderProgress(); };
+  box.querySelectorAll(".un").forEach(el=>el.onclick=()=>{ const f=flById(b,el.dataset.f); unitModal(b,f,el.dataset.x?f.flats.find(y=>y.id===el.dataset.x):null,t); });
+  function hookB(){ box.querySelectorAll("#pgB button").forEach(el=>el.onclick=()=>{ progB=el.dataset.id; renderProgress(); }); }
+}
+const bar = p => `<div class="pbar"><i class="${pctCls(p)}" style="width:${Math.min(100,p)}%"></i></div>`;
+function unitModal(b,f,x,t){
+  const dm=doneMap(b), k=uKey(b,f,x), p=unitPct(dm,b,{f,x},t);
+  modal(`<h3>${esc(t.name)} — <bdi>${esc(b.name)}</bdi> · ${esc(fLabel(f))}${x?` · شقة ${esc(x.name)}`:""}</h3>
+    <div class="pgh"><span class="muted">الإنجاز</span><b class="big">${pctTxt(p)}</b></div>${bar(p)}
+    <div style="margin-top:12px">${t.stages.map(s=>{ const d=dm.get(k+"|"+s.id);
+      return `<div class="stg ${d?"on":""}"><span class="ck">${d?"✓":""}</span><div class="grow"><b>${esc(s.name)}</b> <small>(${+s.w||0})</small>
+        <small class="d">${d?(d.manual?"معلّمة باليد":"بالكشف "+dmy(d.date)):"ما خلصت"}</small></div>
+        ${d&&!d.manual?"":`<button class="btn ${d?"sec":"ok"} sm" data-s="${s.id}">${d?"إلغاء":"✓ خلصت"}</button>`}</div>`; }).join("")}</div>
+    <div class="muted" style="margin-top:8px;line-height:1.6">المراحل اللي خلصت من الكشف اليومي بتتغيّر من الشغل نفسه. التعليم باليد للشغل اللي خلص قبل التطبيق.</div>
+    <div class="actions"><button class="btn sec" id="umX">إغلاق</button></div>`);
+  $("umX").onclick=closeModal;
+  document.querySelectorAll(".stg button").forEach(el=>el.onclick=()=>{ const kk=k+"|"+el.dataset.s;
+    if(S.manual[kk]) delete S.manual[kk]; else S.manual[kk]=today();
+    save(); unitModal(b,f,x,t); renderProgress(); });
+}
+const progName = b => `progress-${b.name.replace(/[^\w\-]/g,"")}-${today()}.pdf`;
+function progRep(b,P){
+  const fs=floorsOf(b), per=P.per;
+  const rows=fs.map(f=>{ const us=P.units.filter(u=>u.f===f);
+    return `<tr><td>${esc(fLabel(f))}</td><td>${us.filter(u=>u.x).length||"—"}</td>${per.map(x=>{ const p=avg(us.map(u=>unitPct(P.dm,b,u,x.t))); return `<td class="${pctCls(p)}">${pctTxt(p)}</td>`; }).join("")}<td><b>${pctTxt(avg(per.map(x=>avg(us.map(u=>unitPct(P.dm,b,u,x.t))))))}</b></td></tr>`; }).join("");
+  const el=document.createElement("div"); el.className="rep";
+  el.innerHTML=`<h2>نسبة الإنجاز — بناية <bdi>${esc(b.name)}</bdi></h2><div class="sub">${S.project?esc(S.project)+" — ":""}${dayName(today())} ${dmy(today())}</div>
+    <table><thead><tr><th>الصنف</th><th>الإنجاز</th><th>خلصت</th></tr></thead><tbody>${per.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="${pctCls(x.pct)}"><b>${pctTxt(x.pct)}</b></td><td>${x.full} من ${P.units.length}</td></tr>`).join("")}
+    <tr class="tot"><td>الإنجاز الكلي</td><td>${pctTxt(P.total)}</td><td></td></tr></tbody></table>
+    <h4>حسب الطابق</h4>
+    <table class="pg"><thead><tr><th>الطابق</th><th>شقق</th>${per.map(x=>`<th>${esc(x.t.name)}</th>`).join("")}<th>الكلي</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="sign"><div>المشرف</div><div>المهندس</div></div>`;
+  return el;
+}
 
 /* ---------- تبويبات ---------- */
 let tab="day";
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
   tab=b.dataset.tab;
   document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.toggle("on",x===b));
-  ["day","reports","settings"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==tab));
+  ["day","progress","reports","settings"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==tab));
   $("fabAdd").classList.toggle("hidden",tab!=="day");
   if(tab==="reports") renderReport();
+  if(tab==="progress"){ progT=null; renderProgress(); }
   if(tab==="settings") renderSettings();
   window.scrollTo(0,0);
 });
@@ -415,7 +564,7 @@ function renderDay(){
   renderHeader(); renderBackupWarn();
   $("dLabel").textContent = dayName(curDate)+" "+dmy(curDate)+(curDate===today()?" — اليوم":"");
   const list=entriesOf(curDate);
-  $("sLines").textContent=list.length; $("sMasters").textContent=sumM(list); $("sWorkers").textContent=sumW(list);
+  $("sLines").textContent=list.length; $("sDone").textContent=list.filter(e=>e.dn&&e.st).length;
   const box=$("dayList");
   if(!list.length){
     box.innerHTML=`<div class="card empty">ماكو شغل مسجل بهذا اليوم.<br>اضغط <b>＋ إضافة شغل</b> تحت.<br><br><button class="btn sec" id="copyPrev">📑 نسخ شغل يوم سابق</button></div>`;
@@ -424,11 +573,11 @@ function renderDay(){
   }
   box.innerHTML = byBuilding(list).map(g=>`
     <div class="group">
-      <div class="group-h"><span>بناية <bdi>${esc(bName(g.id))}</bdi></span><span class="count">${g.list.length} أعمال · ${sumM(g.list)} خلفة · ${sumW(g.list)} عامل</span></div>
+      <div class="group-h"><span>بناية <bdi>${esc(bName(g.id))}</bdi></span><span class="count">${g.list.length} أعمال</span></div>
       <div class="list">${g.list.map(e=>`
         <div class="ent" data-id="${e.id}">
           <div class="loc">ط ${esc(entFloorText(e))}${entFlatText(e)?`<small>شقة ${esc(entFlatText(e))}</small>`:""}</div>
-          <div class="body"><div class="wk">${esc(e.work)}</div><span class="crew">${crewText(e.m,e.w)}</span></div>
+          <div class="body">${stageTag(e)}${e.work?`<div class="wk">${esc(e.work)}</div>`:""}</div>
         </div>`).join("")}</div>
     </div>`).join("") + `<div style="text-align:center;margin-top:4px"><button class="btn sec sm" id="copyPrev">📑 نسخ شغل يوم سابق</button></div>`;
   box.querySelectorAll(".ent").forEach(el=>el.onclick=()=>openEntry(S.entries[el.dataset.id]));
@@ -445,7 +594,7 @@ function closeModal(){ $("modalRoot").innerHTML=""; }
 function recentWorks(bid){
   const all=Object.values(S.entries).sort((a,b)=>(b.t||0)-(a.t||0));
   const out=[], seen=new Set();
-  const push=e=>{ const k=e.work.trim(); if(k&&!seen.has(k)){ seen.add(k); out.push(k); } };
+  const push=e=>{ const k=(e.work||"").trim(); if(k&&!seen.has(k)){ seen.add(k); out.push(k); } };
   all.filter(e=>e.b===bid).forEach(e=>{ if(out.length<6) push(e); });
   all.forEach(e=>{ if(out.length<10) push(e); });
   return out;
@@ -457,18 +606,15 @@ function openEntry(e){
   const vis=S.buildings.filter(b=>!b.hidden || (e&&e.b===b.id));
   if(isNew){
     const b0=lastPick.b&&vis.some(x=>x.id===lastPick.b)?lastPick.b:(vis[0]&&vis[0].id), same=b0===lastPick.b;
-    e={b:b0, fl:same?lastPick.fl.slice():[], ft:"", f:same?lastPick.f:"", flat:"", m:1, w:1, work:""};
+    e={b:b0, fl:same?lastPick.fl.slice():[], ft:"", f:same?lastPick.f:"", flat:"", tr:lastPick.tr||"", st:"", dn:false, work:""};
   } else e={...e, fl:(e.fl||[]).slice(), ft:e.ft||""};
   modal(`
     <h3>${isNew?"إضافة شغل":"تعديل الشغل"} — ${dayName(curDate)} ${dmy(isNew?curDate:e.date)}</h3>
     <div class="field"><label>البناية</label><div class="chips" id="eB">${vis.map(b=>`<button data-id="${esc(b.id)}" class="${b.id===e.b?"on":""}">${esc(b.name)}</button>`).join("")}</div>
       ${vis.length?"":`<div class="err">ماكو بنايات. ضيفها من الإعدادات.</div>`}</div>
     <div id="ePlace"></div>
-    <div class="two">
-      <div class="field"><label>الخلفات</label><div class="step"><button data-s="eM" data-d="-1">−</button><input type="text" inputmode="numeric" id="eM" value="${+e.m||0}"><button data-s="eM" data-d="1">+</button></div></div>
-      <div class="field"><label>العمال</label><div class="step"><button data-s="eW" data-d="-1">−</button><input type="text" inputmode="numeric" id="eW" value="${+e.w||0}"><button data-s="eW" data-d="1">+</button></div></div>
-    </div>
-    <div class="field"><label>الشغل</label><textarea id="eWork" placeholder="مثال: تعليق شبكة PPR">${esc(e.work)}</textarea>
+    <div id="eStage"></div>
+    <div class="field"><label>الشغل <small id="eWorkHint"></small></label><textarea id="eWork" placeholder="مثال: تعليق شبكة PPR">${esc(e.work||"")}</textarea>
       <div class="sugg" id="eSugg"></div></div>
     <div class="preview" id="ePrev"></div>
     <div class="err" id="eErr"></div>
@@ -480,7 +626,21 @@ function openEntry(e){
       ${isNew?"":`<button class="btn bad" id="eDel">حذف</button>`}
       <button class="btn sec" id="eCancel">إلغاء</button>
     </div>`);
-  let bsel=e.b, fsel=e.fl, ftsel=e.ft, txtF=e.f||"", txtFlat=e.flat||"";
+  let bsel=e.b, fsel=e.fl, ftsel=e.ft, txtF=e.f||"", txtFlat=e.flat||"", trsel=trById(e.tr)?e.tr:"", stsel=e.st||"", dnsel=!!e.dn;
+  // الصنف والمرحلة (اختياري) + "خلصت المرحلة" يحدّث نسبة الإنجاز
+  function stagePlace(){
+    const box=$("eStage");
+    if(!S.trades.length){ box.innerHTML=""; return; }
+    const t=trById(trsel); if(!stById(t,stsel)) stsel="";
+    box.innerHTML=`<div class="field"><label>الصنف</label><div class="chips" id="eTr"><button data-t="" class="${trsel?"":"on"}">بدون</button>${S.trades.map(x=>`<button data-t="${x.id}" class="${x.id===trsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`+
+      (t&&t.stages.length?`<div class="field"><label>المرحلة</label><div class="chips" id="eSt">${t.stages.map(x=>`<button data-s="${x.id}" class="${x.id===stsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`:"")+
+      (t&&stsel?`<label class="chk" style="margin-bottom:12px"><input type="checkbox" id="eDn" ${dnsel?"checked":""}> ✓ خلصت هذه المرحلة ${hasFloors()?(fsel.length===1&&ftsel?"بالشقة":"بكل شقق الطابق المختار"):""}</label>`+
+        (!hasFloors()?`<div class="muted" style="margin:-6px 0 12px">💡 النسبة بتنحسب بس للبنايات اللي طوابقها وشققها مسجلة.</div>`:""):"");
+    box.querySelectorAll("#eTr button").forEach(x=>x.onclick=()=>{ trsel=x.dataset.t; stsel=""; stagePlace(); prev(); });
+    box.querySelectorAll("#eSt button").forEach(x=>x.onclick=()=>{ stsel=x.dataset.s; stagePlace(); prev(); });
+    if($("eDn")) $("eDn").onchange=()=>{ dnsel=$("eDn").checked; prev(); };
+    $("eWorkHint").textContent=stsel?"(اختياري)":"";
+  }
   const hasFloors=()=>floorsOf(bById(bsel)).length>0;
   // البناية بدون طوابق مسجلة: كتابة يدوية متل قبل
   function place(){
@@ -502,8 +662,8 @@ function openEntry(e){
       (one&&fl.length?`<div class="field"><label>الشقة</label><div class="chips" id="eFt"><button data-t="" class="${ftsel?"":"on"}">عام للطابق</button>${fl.map(x=>`<button data-t="${x.id}" class="${x.id===ftsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`:"")+
       (one&&!fl.length?`<div class="muted" style="margin:-4px 0 12px">ما في شقق مسجلة لهذا الطابق.</div>`:"")+
       (fsel.length>1?`<div class="muted" style="margin:-4px 0 12px">أكثر من طابق: الشغل يتسجل عام بدون شقة.</div>`:"");
-    box.querySelectorAll("#eFl button").forEach(x=>x.onclick=()=>{ const id=x.dataset.id; fsel=fsel.includes(id)?fsel.filter(y=>y!==id):fsel.concat(id); place(); prev(); });
-    box.querySelectorAll("#eFt button").forEach(x=>x.onclick=()=>{ ftsel=x.dataset.t; place(); prev(); });
+    box.querySelectorAll("#eFl button").forEach(x=>x.onclick=()=>{ const id=x.dataset.id; fsel=fsel.includes(id)?fsel.filter(y=>y!==id):fsel.concat(id); place(); stagePlace(); prev(); });
+    box.querySelectorAll("#eFt button").forEach(x=>x.onclick=()=>{ ftsel=x.dataset.t; place(); stagePlace(); prev(); });
   }
   function cur(){
     if(hasFloors()){
@@ -516,23 +676,24 @@ function openEntry(e){
   const sugg=()=>{ $("eSugg").innerHTML=recentWorks(bsel).map(w=>`<button title="${esc(w)}">${esc(w)}</button>`).join("");
     $("eSugg").querySelectorAll("button").forEach(x=>x.onclick=()=>{ $("eWork").value=x.title; prev(); }); };
   const prev=()=>{ const c=cur();
-    $("ePrev").innerHTML=`<b>${esc(bName(bsel)||"")}</b> — ط${esc(c.fTxt||"؟")}${c.flTxt?` شقة ${esc(c.flTxt)}`:""}: ${esc(crewText(nd($("eM").value),nd($("eW").value)))} — ${esc($("eWork").value.trim()||"...")}`; };
+    const sl=stageLabel({tr:trsel,st:stsel});
+    $("ePrev").innerHTML=`<b>${esc(bName(bsel)||"")}</b> — ط${esc(c.fTxt||"؟")}${c.flTxt?` شقة ${esc(c.flTxt)}`:""}: ${[sl?esc(sl)+(dnsel&&stsel?" ✓ خلصت":""):"", esc($("eWork").value.trim())].filter(Boolean).join(" — ")||"..."}`; };
   $("eB").querySelectorAll("button").forEach(x=>x.onclick=()=>{ if(bsel!==x.dataset.id){ bsel=x.dataset.id; fsel=[]; ftsel=""; }
-    $("eB").querySelectorAll("button").forEach(y=>y.classList.toggle("on",y===x)); place(); sugg(); prev(); });
-  document.querySelectorAll(".step button").forEach(x=>x.onclick=()=>{ const i=$(x.dataset.s); i.value=Math.max(0,(+nd(i.value)||0)+(+x.dataset.d)); prev(); });
-  ["eM","eW","eWork"].forEach(id=>$(id).addEventListener("input",prev));
-  place(); sugg(); prev();
+    $("eB").querySelectorAll("button").forEach(y=>y.classList.toggle("on",y===x)); place(); stagePlace(); sugg(); prev(); });
+  $("eWork").addEventListener("input",prev);
+  place(); stagePlace(); sugg(); prev();
   const doSave=(more)=>{
-    const c=cur(), m=parseInt(nd($("eM").value))||0, w=parseInt(nd($("eW").value))||0, work=$("eWork").value.trim();
+    const c=cur(), work=$("eWork").value.trim();
     if(!bsel) return $("eErr").textContent="اختار البناية";
     if(c.fl ? !c.fl.length : !c.f) return $("eErr").textContent=c.fl?"اختار الطابق":"اكتب الطابق";
-    if(!work) return $("eErr").textContent="اكتب الشغل";
-    if(!m&&!w) return $("eErr").textContent="لازم خلفة أو عامل واحد على الأقل";
-    const id=e.id||uid(), rec={id, date:isNew?curDate:e.date, b:bsel, m, w, work, t:e.t||Date.now()};
+    if(trsel&&!stsel&&trById(trsel).stages.length) return $("eErr").textContent="اختار المرحلة";
+    if(!work&&!stsel) return $("eErr").textContent="اكتب الشغل";
+    const id=e.id||uid(), rec={id, date:isNew?curDate:e.date, b:bsel, work, t:e.t||Date.now()};
+    if(trsel){ rec.tr=trsel; rec.st=stsel; rec.dn=!!(stsel&&dnsel); }
     if(c.fl){ rec.fl=c.fl; rec.ft=c.ft; } else { rec.f=c.f; rec.flat=c.flat; }
     S.entries[id]=rec;
     if(!save()) return;
-    lastPick={b:bsel, fl:c.fl||[], f:c.f||""};
+    lastPick={b:bsel, fl:c.fl||[], f:c.f||"", tr:trsel};
     renderDay();
     if(more){ toast("انحفظ ✓"); openEntry(null); }
     else { closeModal(); toast("انحفظ ✓"); }
@@ -550,12 +711,12 @@ function openCopy(){
   if(!dates.length){ toast("ماكو أيام سابقة مسجلة"); return; }
   modal(`<h3>نسخ شغل يوم سابق إلى ${dmy(curDate)}</h3>
     <div class="field"><label>من يوم</label><select id="cpD">${dates.slice(0,60).map(d=>`<option value="${d}">${dayName(d)} ${dmy(d)} (${entriesOf(d).length})</option>`).join("")}</select></div>
-    <div class="muted" style="margin-bottom:10px">ينسخ كل الأسطر، وبعدها تقدر تعدل أو تحذف أي سطر.</div>
+    <div class="muted" style="margin-bottom:10px">ينسخ كل الأسطر (بدون علامة "خلصت")، وبعدها تقدر تعدل أو تحذف أي سطر.</div>
     <div class="actions"><button class="btn ok" id="cpGo">نسخ</button><button class="btn sec" id="cpX">إلغاء</button></div>`);
   $("cpX").onclick=closeModal;
   $("cpGo").onclick=()=>{
     const src=sortEntries(entriesOf($("cpD").value)); let t=Date.now();
-    src.forEach(e=>{ const id=uid(); S.entries[id]={...e,id,date:curDate,t:t++}; });
+    src.forEach(e=>{ const id=uid(); S.entries[id]={...e,id,date:curDate,t:t++,dn:false}; });
     save(); closeModal(); renderDay(); toast(`انتسخ ${src.length} سطر`);
   };
 }
@@ -571,14 +732,16 @@ function rParams(){ return {type:$("rType").value, date:$("rDate").value, from:$
 $("rType").onchange=()=>{ const r=$("rType").value==="range"; $("rDayBox").classList.toggle("hidden",r); $("rFromBox").classList.toggle("hidden",!r); $("rToBox").classList.toggle("hidden",!r); renderReport(); };
 ["rDate","rFrom","rTo","rBld"].forEach(id=>$(id).addEventListener("change",renderReport));
 
+const doneCnt = l => l.filter(e=>e.dn&&e.st).length;
 function dayTable(list, withBldRows){
   let n=0;
   const rows = byBuilding(list).map(g=>
-    (withBldRows?`<tr class="grp"><td colspan="6">بناية <bdi>${esc(bName(g.id))}</bdi> — ${sumM(g.list)} خلفة · ${sumW(g.list)} عامل</td></tr>`:"")+
-    g.list.map(e=>`<tr><td>${++n}</td><td>${esc(entFloorText(e))}</td><td>${esc(entFlatText(e)||"—")}</td><td>${+e.m||"—"}</td><td>${+e.w||"—"}</td><td class="w">${esc(e.work)}</td></tr>`).join("")
+    (withBldRows?`<tr class="grp"><td colspan="5">بناية <bdi>${esc(bName(g.id))}</bdi> — ${g.list.length} أعمال</td></tr>`:"")+
+    g.list.map(e=>{ const sl=stageLabel(e);
+      return `<tr><td>${++n}</td><td>${esc(entFloorText(e))}</td><td>${esc(entFlatText(e)||"—")}</td><td>${sl?esc(sl):"—"}${e.dn&&e.st?` <b class="full">✓</b>`:""}</td><td class="w">${esc(e.work||"")}</td></tr>`; }).join("")
   ).join("");
-  return `<table><thead><tr><th style="width:26px">#</th><th style="width:60px">الطابق</th><th style="width:44px">الشقة</th><th style="width:48px">خلفات</th><th style="width:44px">عمال</th><th>الشغل</th></tr></thead>
-    <tbody>${rows}<tr class="tot"><td colspan="3">المجموع</td><td>${sumM(list)}</td><td>${sumW(list)}</td><td></td></tr></tbody></table>`;
+  return `<table><thead><tr><th style="width:26px">#</th><th style="width:60px">الطابق</th><th style="width:44px">الشقة</th><th style="width:130px">الصنف · المرحلة</th><th>الشغل</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
 }
 function renderReport(){
   fillBldSel();
@@ -586,18 +749,14 @@ function renderReport(){
   const head=(t,sub)=>`<h2>${t}</h2><div class="sub">${S.project?esc(S.project)+" — ":""}${sub}</div>`;
   const sign=`<div class="sign"><div>المشرف</div><div>المهندس</div></div>`;
   const filt=l=>P.b?l.filter(e=>e.b===P.b):l;
+  const cnt=l=>`${l.length} أعمال${doneCnt(l)?` · ${doneCnt(l)} مراحل خلصت`:""}`;
   if(P.type==="day"){
     if(!P.date){ A.innerHTML=`<div class="empty">اختار التاريخ</div>`; return; }
     const list=filt(entriesOf(P.date));
     if(!list.length){ A.innerHTML=`<div class="empty">ماكو شغل مسجل ${P.b?"لبناية "+"<bdi>"+esc(bName(P.b))+"</bdi>"+" ":""}بتاريخ ${dmy(P.date)}</div>`; return; }
     const groups=byBuilding(list);
     let html=head("كشف أعمال يومي"+(P.b?" — بناية "+"<bdi>"+esc(bName(P.b))+"</bdi>":""), `${dayName(P.date)} ${dmy(P.date)}`);
-    html+=groups.map(g=>`<h3>بناية <bdi>${esc(bName(g.id))}</bdi><span>${sumM(g.list)} خلفة · ${sumW(g.list)} عامل</span></h3>${dayTable(g.list,false)}`).join("");
-    if(groups.length>1){
-      html+=`<h4>الخلاصة</h4><table><thead><tr><th>البناية</th><th>عدد الأعمال</th><th>الخلفات</th><th>العمال</th></tr></thead><tbody>`+
-        groups.map(g=>`<tr><td><bdi>${esc(bName(g.id))}</bdi></td><td>${g.list.length}</td><td>${sumM(g.list)}</td><td>${sumW(g.list)}</td></tr>`).join("")+
-        `<tr class="tot"><td>المجموع</td><td>${list.length}</td><td>${sumM(list)}</td><td>${sumW(list)}</td></tr></tbody></table>`;
-    }
+    html+=groups.map(g=>`<h3><span>بناية <bdi>${esc(bName(g.id))}</bdi></span><span>${cnt(g.list)}</span></h3>${dayTable(g.list,false)}`).join("");
     A.innerHTML=`<div class="rep">${html}${sign}</div>`;
   } else {
     if(!P.from||!P.to){ A.innerHTML=`<div class="empty">اختار من تاريخ وإلى تاريخ</div>`; return; }
@@ -607,11 +766,11 @@ function renderReport(){
     const dates=[...new Set(list.map(e=>e.date))].sort();
     const groups=byBuilding(list);
     let html=head("تقرير أعمال"+(P.b?" — بناية "+"<bdi>"+esc(bName(P.b))+"</bdi>":" البنايات"), `من ${dmy(P.from)} إلى ${dmy(P.to)}`);
-    html+=`<h4>الخلاصة</h4><table><thead><tr><th>البناية</th><th>أيام العمل</th><th>عدد الأعمال</th><th>مجموع الخلفات</th><th>مجموع العمال</th></tr></thead><tbody>`+
-      groups.map(g=>`<tr><td><bdi>${esc(bName(g.id))}</bdi></td><td>${new Set(g.list.map(e=>e.date)).size}</td><td>${g.list.length}</td><td>${sumM(g.list)}</td><td>${sumW(g.list)}</td></tr>`).join("")+
-      (groups.length>1?`<tr class="tot"><td>المجموع</td><td>${dates.length}</td><td>${list.length}</td><td>${sumM(list)}</td><td>${sumW(list)}</td></tr>`:"")+`</tbody></table>`;
+    html+=`<h4>الخلاصة</h4><table><thead><tr><th>البناية</th><th>أيام العمل</th><th>عدد الأعمال</th><th>مراحل خلصت</th></tr></thead><tbody>`+
+      groups.map(g=>`<tr><td><bdi>${esc(bName(g.id))}</bdi></td><td>${new Set(g.list.map(e=>e.date)).size}</td><td>${g.list.length}</td><td>${doneCnt(g.list)}</td></tr>`).join("")+
+      (groups.length>1?`<tr class="tot"><td>المجموع</td><td>${dates.length}</td><td>${list.length}</td><td>${doneCnt(list)}</td></tr>`:"")+`</tbody></table>`;
     html+=dates.map(d=>{ const l=list.filter(e=>e.date===d);
-      return `<h3>${dayName(d)} ${dmy(d)}<span>${sumM(l)} خلفة · ${sumW(l)} عامل</span></h3>${dayTable(l,!P.b)}`; }).join("");
+      return `<h3>${dayName(d)} ${dmy(d)}<span>${cnt(l)}</span></h3>${dayTable(l,!P.b)}`; }).join("");
     A.innerHTML=`<div class="rep">${html}${sign}</div>`;
   }
 }
@@ -626,8 +785,8 @@ function repFileName(){
   return P.type==="day" ? `works${bl}-${P.date}.pdf` : `works${bl}-${P.from}_to_${P.to}.pdf`;
 }
 const PW=794, PH=Math.round(794*297/210), PM=30;
-async function buildPages(){
-  const rep=$("printArea").querySelector(".rep");
+const repRep = () => $("printArea").querySelector(".rep");
+async function buildPages(rep){
   if(!rep) throw new Error("empty");
   await loadLibs();
   const box=document.createElement("div");
@@ -669,12 +828,12 @@ async function shareBlob(b64, blob, name, mime){
     else { const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
   }
 }
-async function sharePdf(pages){
+async function sharePdf(pages,name,rep){
   busy(true,"جارِ تجهيز PDF...");
   try{
-    pages = pages || await buildPages();
+    pages = pages || await buildPages(rep);
     const pdf=pagesToPdf(pages);
-    await shareBlob(()=>pdf.output("datauristring").split(",")[1], ()=>pdf.output("blob"), repFileName(), "application/pdf");
+    await shareBlob(()=>pdf.output("datauristring").split(",")[1], ()=>pdf.output("blob"), name, "application/pdf");
   } catch(e){ pdfError(e); }
   finally{ busy(false); }
 }
@@ -685,10 +844,10 @@ function pdfError(e){
 }
 window.__shareFailed=()=>toast("ما انفتحت قائمة الإرسال");
 
-async function openPreview(){
+async function openPreview(rep,name){
   busy(true,"جارِ تجهيز المعاينة...");
   let pages;
-  try{ pages=await buildPages(); } catch(e){ pdfError(e); return; }
+  try{ pages=await buildPages(rep); } catch(e){ pdfError(e); return; }
   busy(false);
   const urls=pages.map(p=>p.toDataURL("image/jpeg",0.9));
   const ov=document.createElement("div"); ov.id="pv";
@@ -715,15 +874,15 @@ async function openPreview(){
   ov.querySelector("#pvOut").onclick=()=>{ z/=1.25; apply(true); };
   ov.querySelector("#pvZ").onclick=()=>{ z=fit(); apply(true); };
   ov.querySelector("#pvClose").onclick=()=>ov.remove();
-  ov.querySelector("#pvShare").onclick=()=>sharePdf(pages);
+  ov.querySelector("#pvShare").onclick=()=>sharePdf(pages,name);
   let d0=0,z0=1;
   const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
   box.addEventListener("touchstart",e=>{ if(e.touches.length===2){ d0=dist(e.touches); z0=z; } },{passive:true});
   box.addEventListener("touchmove",e=>{ if(e.touches.length===2&&d0){ e.preventDefault(); z=z0*dist(e.touches)/d0; apply(true); } },{passive:false});
   box.addEventListener("touchend",e=>{ if(e.touches.length<2) d0=0; });
 }
-$("rPreview").onclick=openPreview;
-$("rShare").onclick=()=>sharePdf();
+$("rPreview").onclick=()=>openPreview(repRep(),repFileName());
+$("rShare").onclick=()=>sharePdf(null,repFileName(),repRep());
 $("rPrint").onclick=()=>{
   if(!$("printArea").querySelector(".rep")){ toast("ماكو كشف"); return; }
   const P=rParams(), title=P.type==="day"?"كشف أعمال "+dmy(P.date):"تقرير أعمال "+dmy(P.from)+" - "+dmy(P.to);
@@ -750,6 +909,7 @@ function renderSettings(){
   });
   $("lastBk").textContent = S.lastBackup ? "آخر نسخة: "+dmy(isoOf(new Date(S.lastBackup))) : "ما عملت نسخة احتياطية لحد الآن.";
   $("verTxt").textContent=APP_VERSION;
+  renderTrades();
 }
 function afterLayout(){ save(); linkOld(); renderSettings(); renderDay(); }
 
@@ -850,8 +1010,57 @@ $("bAdd").onclick=()=>{
   const b={id,name:n,floors:[]}; S.buildings.push(b); save(); $("bNew").value=""; renderSettings(); bldModal(b);
 };
 
+/* الأصناف والمراحل */
+function renderTrades(){
+  $("tList").innerHTML=S.trades.map((t,i)=>{ const W=trWeight(t);
+    return `<div class="bl"><span class="nm bo" data-t="${i}">${esc(t.name)}<small>${t.stages.length?`${t.stages.length} مراحل · مجموع الأوزان ${W}`:"بدون مراحل — اضغط لتسجيلها"}</small></span>
+      <button class="btn sec sm" data-a="up" data-i="${i}" ${i?"":"disabled"}>▲</button></div>`; }).join("")||`<div class="muted">ما في أصناف. ضيف أول صنف من تحت.</div>`;
+  $("tList").querySelectorAll(".bo").forEach(x=>x.onclick=()=>tradeModal(S.trades[+x.dataset.t]));
+  $("tList").querySelectorAll("button").forEach(x=>x.onclick=()=>{ const i=+x.dataset.i; S.trades.splice(i-1,0,S.trades.splice(i,1)[0]); save(); renderTrades(); });
+}
+const stageUses = (t,st) => Object.values(S.entries).filter(e=>e.tr===t.id&&e.st===st.id).length+Object.keys(S.manual).filter(k=>k.endsWith("|"+st.id)).length;
+function tradeModal(t){
+  const W=trWeight(t);
+  modal(`<h3>${esc(t.name)}</h3>
+    <div class="row" style="margin-bottom:12px"><input type="text" id="tmN" class="grow" value="${esc(t.name)}"><button class="btn sec sm" id="tmNS">تغيير الاسم</button></div>
+    <div class="sect">المراحل والأوزان <small>رتّبها حسب تسلسل الشغل. الوزن رقم، والأحسن مجموعهم يكون 100.</small></div>
+    <div id="tmS">${t.stages.map((st,i)=>`<div class="sw">
+        <button class="btn sec sm" data-up="${i}" ${i?"":"disabled"}>▲</button>
+        <input type="text" class="grow" data-n="${i}" value="${esc(st.name)}">
+        <input type="text" class="w" inputmode="decimal" data-w="${i}" value="${+st.w||0}">
+        <button class="btn bad sm" data-del="${i}">✕</button></div>`).join("")||`<div class="muted" style="padding:6px 0">ما في مراحل.</div>`}</div>
+    <div class="muted" id="tmSum" style="margin:6px 0">مجموع الأوزان: <b>${W}</b>${t.stages.length&&W!==100?" (مو 100، بس النسبة بتنحسب صح حسب المجموع)":""}</div>
+    <div class="row" style="margin-top:8px"><input type="text" id="tmAN" class="grow" placeholder="مرحلة جديدة، مثلاً: تمديد"><input type="text" id="tmAW" class="w" inputmode="decimal" placeholder="وزن" style="width:64px;text-align:center"><button class="btn ok sm" id="tmA">+</button></div>
+    <div class="err" id="tmE"></div>
+    <div class="actions"><button class="btn ok" id="tmSave">حفظ التعديلات</button><button class="btn sec" id="tmX">إغلاق</button></div>
+    <div class="actions"><button class="btn bad" id="tmD">حذف الصنف</button></div>`);
+  const collect=()=>{ let ok=true;
+    document.querySelectorAll("#tmS [data-n]").forEach(el=>{ const i=+el.dataset.n, nm=el.value.trim(), w=parseFloat(nd(document.querySelector(`#tmS [data-w="${i}"]`).value));
+      if(!nm||!(w>=0)) ok=false; else { t.stages[i].name=nm; t.stages[i].w=w; } });
+    return ok; };
+  const done=()=>{ save(); renderTrades(); tradeModal(t); };
+  $("tmX").onclick=()=>{ if(collect()) save(); renderTrades(); closeModal(); };
+  $("tmSave").onclick=()=>{ if(!collect()){ $("tmE").textContent="كل مرحلة لازم إلها اسم ووزن (رقم)"; return; } save(); renderTrades(); closeModal(); toast("انحفظ ✓"); };
+  $("tmNS").onclick=()=>{ const nm=$("tmN").value.trim(); if(!nm) return;
+    if(S.trades.some(x=>x!==t&&x.name===nm)){ $("tmE").textContent="في صنف ثاني بنفس الاسم"; return; } t.name=nm; collect(); done(); };
+  $("tmA").onclick=()=>{ const nm=$("tmAN").value.trim(), w=parseFloat(nd($("tmAW").value));
+    if(!nm){ $("tmE").textContent="اكتب اسم المرحلة"; return; }
+    if(!(w>=0)){ $("tmE").textContent="اكتب وزن المرحلة (رقم)"; return; }
+    collect(); t.stages.push({id:"s"+uid(),name:nm,w}); done(); setTimeout(()=>{ const el=$("tmAN"); if(el) el.focus(); },50); };
+  document.querySelectorAll("#tmS [data-up]").forEach(el=>el.onclick=()=>{ const i=+el.dataset.up; collect(); t.stages.splice(i-1,0,t.stages.splice(i,1)[0]); done(); });
+  document.querySelectorAll("#tmS [data-del]").forEach(el=>el.onclick=()=>{ const i=+el.dataset.del, st=t.stages[i], u=stageUses(t,st);
+    if(u){ $("tmE").textContent=`مرحلة "${st.name}" عليها ${u} شغل مسجل، ما بتنحذف. فيك تغيّر اسمها أو وزنها.`; return; }
+    collect(); t.stages.splice(i,1); done(); });
+  $("tmD").onclick=()=>{ const u=Object.values(S.entries).filter(e=>e.tr===t.id).length;
+    if(u){ $("tmE").textContent=`على هذا الصنف ${u} شغل مسجل، ما بينحذف`; return; }
+    if(!confirm("حذف صنف "+t.name+"؟")) return; S.trades=S.trades.filter(x=>x!==t); save(); renderTrades(); closeModal(); };
+}
+$("tAdd").onclick=()=>{ const nm=$("tNew").value.trim(); if(!nm) return;
+  if(S.trades.some(t=>t.name===nm)){ toast("الصنف موجود"); return; }
+  const t={id:"t"+uid(),name:nm,stages:[]}; S.trades.push(t); save(); $("tNew").value=""; renderTrades(); tradeModal(t); };
+
 /* نسخة احتياطية */
-function backupJson(){ return JSON.stringify({app:"building-works",v:1,at:new Date().toISOString(),data:{project:S.project,buildings:S.buildings,entries:S.entries}}); }
+function backupJson(){ return JSON.stringify({app:"building-works",v:1,at:new Date().toISOString(),data:{project:S.project,buildings:S.buildings,entries:S.entries,trades:S.trades,manual:S.manual}}); }
 const b64utf8 = s => btoa(unescape(encodeURIComponent(s)));
 function bkName(){ return `building-works-backup-${today()}.json`; }
 async function backupShare(){
@@ -883,6 +1092,9 @@ $("bkFile").onchange=async()=>{
       (f.flats||[]).forEach(x=>{ if(!of.flats.some(y=>y.id===x.id)) of.flats.push(x); }); }); });
   S.buildings.forEach(b=>{ if(!Array.isArray(b.floors)) b.floors=[]; b.floors.forEach(f=>{ if(!Array.isArray(f.flats)) f.flats=[]; }); });
   if(!S.project&&j.data.project) S.project=j.data.project;
+  (j.data.trades||[]).forEach(t=>{ if(!t||!t.id) return; const o=trById(t.id);
+    if(!o){ S.trades.push(t); return; } (t.stages||[]).forEach(st=>{ if(!o.stages.some(y=>y.id===st.id)) o.stages.push(st); }); });
+  Object.assign(S.manual, j.data.manual||{});
   save(); linkOld(); renderSettings(); renderDay(); toast(`انضاف ${neu} سطر ✓`);
 };
 $("chkUpd").onclick=()=>{

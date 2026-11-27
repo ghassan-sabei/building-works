@@ -294,7 +294,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "2.0";
+const APP_VERSION = "2.1";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -326,6 +326,28 @@ function load(){
   S.trades.forEach(t=>{ if(!Array.isArray(t.stages)) t.stages=[]; });
   S.manual = S.manual && typeof S.manual==="object" ? S.manual : {};
   S.buildings.forEach(b=>{ if(!Array.isArray(b.floors)) b.floors=[]; b.floors.forEach(f=>{ if(!Array.isArray(f.flats)) f.flats=[]; }); });
+  fixJoinedFlats();
+}
+/* أرقام شقق مفصولة بفواصل أو "و" أو مدى (1-6) */
+function splitFlats(s){
+  const out=[];
+  nd(s).replace(/(\d)\s*و\s*(?=\d)/g,"$1,").split(/[,،;؛\n]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>{
+    const m=x.match(/^(\d+)\s*-\s*(\d+)$/);
+    if(m&&+m[2]>=+m[1]&&+m[2]-+m[1]<=50){ for(let k=+m[1];k<=+m[2];k++) out.push(String(k)); } else out.push(x);
+  });
+  return [...new Set(out)];
+}
+/* شقة انكتبت "1و2و3و4" بالغلط: تنقسم لشقق، والشغل المسجل عليها يمشي على الشقق الجديدة */
+function fixJoinedFlats(){
+  let ch=false;
+  S.buildings.forEach(b=>b.floors.forEach(f=>f.flats.slice().forEach(x=>{
+    const parts=splitFlats(x.name); if(parts.length<2||!/^[\d,،و\s\-]+$/.test(nd(x.name))) return;
+    const ids=parts.map(nm=>{ let y=f.flats.find(z=>z!==x&&z.name===nm); if(!y){ y={id:"x"+uid(),name:nm}; f.flats.push(y); } return y.id; });
+    Object.values(S.entries).forEach(e=>{ const a=e.fts||(e.ft?[e.ft]:[]); if(a.includes(x.id)){ e.fts=[...new Set(a.filter(i=>i!==x.id).concat(ids))]; delete e.ft; } });
+    Object.keys(S.manual).forEach(k=>{ const p=k.split("|"); if(p[2]===x.id){ ids.forEach(i=>{ S.manual[p[0]+"|"+p[1]+"|"+i+"|"+p[3]]=S.manual[k]; }); delete S.manual[k]; } });
+    f.flats=f.flats.filter(z=>z!==x); ch=true;
+  })));
+  if(ch) try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){}
 }
 function save(){
   try{ localStorage.setItem(KEY,JSON.stringify(S)); return true; }
@@ -366,7 +388,7 @@ const bOrder = id => { const i=S.buildings.findIndex(x=>x.id===id); return i<0?9
    building {id,name,hidden,floors:[{id,k,r,name,flats:[{id,name}]}]}
    k: bas سرداب / gnd أرضي / num طابق مرقّم / vil فيلا السطح / roof السطح / "" اسم آخر
    r: ترتيب: السراديب < الأرضي < 1..n < أسماء أخرى < الفيلا < السطح
-   الشغل: fl = [أرقام الطوابق]، ft = الشقة (بس لما يكون طابق واحد) */
+   الشغل: fl = [الطوابق]، fts = [الشقق المختارة من هالطوابق]؛ الطابق اللي ما اختير منه شقة = عام للطابق */
 const natCmp=(a,b)=>String(a).localeCompare(String(b),"en",{numeric:true});
 const bById = id => S.buildings.find(x=>x.id===id);
 const flById = (b,id) => b&&b.floors ? b.floors.find(f=>f.id===id) : null;
@@ -389,13 +411,17 @@ function entFloors(e){
   const b=bById(e.b); return e.fl.map(id=>flById(b,id)).filter(Boolean).sort((x,y)=>x.r-y.r);
 }
 function entFloorText(e){ const fs=entFloors(e); return fs ? fs.map(fShort).join("، ") : (e.f||""); }
+const entFts = e => e.fts || (e.ft?[e.ft]:[]);
 function entFlatText(e){
-  if(e.ft){ const f=flById(bById(e.b),e.fl&&e.fl[0]), x=f&&f.flats.find(x=>x.id===e.ft); return x?x.name:"?"; }
-  return e.flat||"";
+  const fs=entFloors(e); if(!fs) return e.flat||"";
+  const ids=entFts(e); if(!ids.length) return "";
+  const per=fs.map(f=>({f, xs:flatsOf(f).filter(x=>ids.includes(x.id))})).filter(o=>o.xs.length);
+  if(fs.length===1) return per.length?per[0].xs.map(x=>x.name).join("، "):"";
+  return per.map(o=>`ط${fShort(o.f)}: ${o.xs.map(x=>x.name).join("، ")}`).join(" · ");
 }
 function entRank(e){ const fs=entFloors(e); return fs&&fs.length ? fs[0].r : firstNum(e.f); }
 const floorUses = (b,f) => Object.values(S.entries).filter(e=>e.b===b.id&&(e.fl||[]).includes(f.id)).length;
-const flatUses = (b,f,x) => Object.values(S.entries).filter(e=>e.b===b.id&&e.ft===x.id&&(e.fl||[]).includes(f.id)).length;
+const flatUses = (b,f,x) => Object.values(S.entries).filter(e=>e.b===b.id&&entFts(e).includes(x.id)).length;
 
 /* شغل انكتب قبل تسجيل الطوابق: إذا الطابق والشقة موجودين بالإعدادات، يرتبط فيهم */
 function linkOld(){
@@ -407,7 +433,7 @@ function linkOld(){
     for(const p of parts){ const f=b.floors.find(f=>fShort(f)===p||fLabel(f)===p); if(!f) return; ids.push(f.id); }
     let ft="";
     if(e.flat){ if(ids.length!==1) return; const x=flById(b,ids[0]).flats.find(x=>x.name===nd(e.flat).trim()); if(!x) return; ft=x.id; }
-    e.fl=ids; e.ft=ft; delete e.f; delete e.flat; ch=true;
+    e.fl=ids; e.fts=ft?[ft]:[]; delete e.f; delete e.flat; ch=true;
   });
   if(ch) save();
 }
@@ -440,8 +466,11 @@ function unitsOf(b){ const out=[];
 const uKey = (b,f,x) => b.id+"|"+f.id+"|"+(x?x.id:"");
 function entUnits(e){ // الوحدات اللي بيغطيها الشغل
   const b=bById(e.b), fs=entFloors(e); if(!b||!fs) return [];
-  if(fs.length===1&&e.ft){ const x=fs[0].flats.find(y=>y.id===e.ft); return x?[{f:fs[0],x}]:[]; }
-  const out=[]; fs.forEach(f=>{ if(f.flats.length) f.flats.forEach(x=>out.push({f,x})); else out.push({f,x:null}); }); return out;
+  const ids=entFts(e), out=[];
+  fs.forEach(f=>{ const sel=f.flats.filter(x=>ids.includes(x.id));
+    if(sel.length) sel.forEach(x=>out.push({f,x}));
+    else if(f.flats.length) f.flats.forEach(x=>out.push({f,x})); else out.push({f,x:null}); });
+  return out;
 }
 function doneMap(b){ // key|stage → {date, eid} أو {manual}
   const m=new Map();
@@ -606,8 +635,8 @@ function openEntry(e){
   const vis=S.buildings.filter(b=>!b.hidden || (e&&e.b===b.id));
   if(isNew){
     const b0=lastPick.b&&vis.some(x=>x.id===lastPick.b)?lastPick.b:(vis[0]&&vis[0].id), same=b0===lastPick.b;
-    e={b:b0, fl:same?lastPick.fl.slice():[], ft:"", f:same?lastPick.f:"", flat:"", tr:lastPick.tr||"", st:"", dn:false, work:""};
-  } else e={...e, fl:(e.fl||[]).slice(), ft:e.ft||""};
+    e={b:b0, fl:same?lastPick.fl.slice():[], fts:[], f:same?lastPick.f:"", flat:"", tr:lastPick.tr||"", st:"", dn:false, work:""};
+  } else e={...e, fl:(e.fl||[]).slice(), fts:entFts(e).slice()};
   modal(`
     <h3>${isNew?"إضافة شغل":"تعديل الشغل"} — ${dayName(curDate)} ${dmy(isNew?curDate:e.date)}</h3>
     <div class="field"><label>البناية</label><div class="chips" id="eB">${vis.map(b=>`<button data-id="${esc(b.id)}" class="${b.id===e.b?"on":""}">${esc(b.name)}</button>`).join("")}</div>
@@ -626,7 +655,7 @@ function openEntry(e){
       ${isNew?"":`<button class="btn bad" id="eDel">حذف</button>`}
       <button class="btn sec" id="eCancel">إلغاء</button>
     </div>`);
-  let bsel=e.b, fsel=e.fl, ftsel=e.ft, txtF=e.f||"", txtFlat=e.flat||"", trsel=trById(e.tr)?e.tr:"", stsel=e.st||"", dnsel=!!e.dn;
+  let bsel=e.b, fsel=e.fl, ftsel=e.fts, txtF=e.f||"", txtFlat=e.flat||"", trsel=trById(e.tr)?e.tr:"", stsel=e.st||"", dnsel=!!e.dn;
   // الصنف والمرحلة (اختياري) + "خلصت المرحلة" يحدّث نسبة الإنجاز
   function stagePlace(){
     const box=$("eStage");
@@ -634,7 +663,7 @@ function openEntry(e){
     const t=trById(trsel); if(!stById(t,stsel)) stsel="";
     box.innerHTML=`<div class="field"><label>الصنف</label><div class="chips" id="eTr"><button data-t="" class="${trsel?"":"on"}">بدون</button>${S.trades.map(x=>`<button data-t="${x.id}" class="${x.id===trsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`+
       (t&&t.stages.length?`<div class="field"><label>المرحلة</label><div class="chips" id="eSt">${t.stages.map(x=>`<button data-s="${x.id}" class="${x.id===stsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`:"")+
-      (t&&stsel?`<label class="chk" style="margin-bottom:12px"><input type="checkbox" id="eDn" ${dnsel?"checked":""}> ✓ خلصت هذه المرحلة ${hasFloors()?(fsel.length===1&&ftsel?"بالشقة":"بكل شقق الطابق المختار"):""}</label>`+
+      (t&&stsel?`<label class="chk" style="margin-bottom:12px"><input type="checkbox" id="eDn" ${dnsel?"checked":""}> ✓ خلصت هذه المرحلة ${hasFloors()?(ftsel.length?"بالشقق المختارة":"بكل شقق الطوابق المختارة"):""}</label>`+
         (!hasFloors()?`<div class="muted" style="margin:-6px 0 12px">💡 النسبة بتنحسب بس للبنايات اللي طوابقها وشققها مسجلة.</div>`:""):"");
     box.querySelectorAll("#eTr button").forEach(x=>x.onclick=()=>{ trsel=x.dataset.t; stsel=""; stagePlace(); prev(); });
     box.querySelectorAll("#eSt button").forEach(x=>x.onclick=()=>{ stsel=x.dataset.s; stagePlace(); prev(); });
@@ -655,20 +684,24 @@ function openEntry(e){
       return;
     }
     fsel=fsel.filter(id=>fs.some(f=>f.id===id));
-    const one=fsel.length===1?flById(b,fsel[0]):null, fl=one?flatsOf(one):[];
-    if(!fl.some(x=>x.id===ftsel)) ftsel="";
+    const selF=fs.filter(f=>fsel.includes(f.id));
+    ftsel=ftsel.filter(id=>selF.some(f=>f.flats.some(x=>x.id===id)));
+    // لكل طابق مختار: شققه (تقدر تختار أكثر من شقة)، وإذا ما اخترت شي = عام للطابق
     box.innerHTML=`<div class="field"><label>الطابق <small>(تقدر تختار أكثر من طابق)</small></label>
         <div class="chips" id="eFl">${fs.map(f=>`<button data-id="${f.id}" class="${fsel.includes(f.id)?"on":""}">${esc(fShort(f))}</button>`).join("")}</div></div>`+
-      (one&&fl.length?`<div class="field"><label>الشقة</label><div class="chips" id="eFt"><button data-t="" class="${ftsel?"":"on"}">عام للطابق</button>${fl.map(x=>`<button data-t="${x.id}" class="${x.id===ftsel?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`:"")+
-      (one&&!fl.length?`<div class="muted" style="margin:-4px 0 12px">ما في شقق مسجلة لهذا الطابق.</div>`:"")+
-      (fsel.length>1?`<div class="muted" style="margin:-4px 0 12px">أكثر من طابق: الشغل يتسجل عام بدون شقة.</div>`:"");
+      selF.map(f=>{ const fl=flatsOf(f), any=fl.some(x=>ftsel.includes(x.id));
+        return fl.length?`<div class="field"><label>شقق ${esc(fLabel(f))} <small>(تقدر تختار أكثر من شقة)</small></label><div class="chips eFt"><button data-f="${f.id}" data-t="" class="${any?"":"on"}">عام للطابق</button>${fl.map(x=>`<button data-f="${f.id}" data-t="${x.id}" class="${ftsel.includes(x.id)?"on":""}">${esc(x.name)}</button>`).join("")}</div></div>`
+          :`<div class="muted" style="margin:-4px 0 12px">${esc(fLabel(f))}: ما في شقق مسجلة.</div>`; }).join("");
     box.querySelectorAll("#eFl button").forEach(x=>x.onclick=()=>{ const id=x.dataset.id; fsel=fsel.includes(id)?fsel.filter(y=>y!==id):fsel.concat(id); place(); stagePlace(); prev(); });
-    box.querySelectorAll("#eFt button").forEach(x=>x.onclick=()=>{ ftsel=x.dataset.t; place(); stagePlace(); prev(); });
+    box.querySelectorAll(".eFt button").forEach(x=>x.onclick=()=>{ const t=x.dataset.t, f=flById(b,x.dataset.f);
+      if(!t) ftsel=ftsel.filter(id=>!f.flats.some(y=>y.id===id));
+      else ftsel=ftsel.includes(t)?ftsel.filter(y=>y!==t):ftsel.concat(t);
+      place(); stagePlace(); prev(); });
   }
   function cur(){
     if(hasFloors()){
-      const tmp={b:bsel, fl:fsel.slice(), ft:fsel.length===1?ftsel:""};
-      return {fl:tmp.fl, ft:tmp.ft, fTxt:entFloorText(tmp), flTxt:entFlatText(tmp)};
+      const tmp={b:bsel, fl:fsel.slice(), fts:ftsel.slice()};
+      return {fl:tmp.fl, fts:tmp.fts, fTxt:entFloorText(tmp), flTxt:entFlatText(tmp)};
     }
     const f=normFloors(txtF), fl=nd(txtFlat).trim();
     return {f, flat:fl, fTxt:f, flTxt:fl};
@@ -678,7 +711,7 @@ function openEntry(e){
   const prev=()=>{ const c=cur();
     const sl=stageLabel({tr:trsel,st:stsel});
     $("ePrev").innerHTML=`<b>${esc(bName(bsel)||"")}</b> — ط${esc(c.fTxt||"؟")}${c.flTxt?` شقة ${esc(c.flTxt)}`:""}: ${[sl?esc(sl)+(dnsel&&stsel?" ✓ خلصت":""):"", esc($("eWork").value.trim())].filter(Boolean).join(" — ")||"..."}`; };
-  $("eB").querySelectorAll("button").forEach(x=>x.onclick=()=>{ if(bsel!==x.dataset.id){ bsel=x.dataset.id; fsel=[]; ftsel=""; }
+  $("eB").querySelectorAll("button").forEach(x=>x.onclick=()=>{ if(bsel!==x.dataset.id){ bsel=x.dataset.id; fsel=[]; ftsel=[]; }
     $("eB").querySelectorAll("button").forEach(y=>y.classList.toggle("on",y===x)); place(); stagePlace(); sugg(); prev(); });
   $("eWork").addEventListener("input",prev);
   place(); stagePlace(); sugg(); prev();
@@ -690,7 +723,7 @@ function openEntry(e){
     if(!work&&!stsel) return $("eErr").textContent="اكتب الشغل";
     const id=e.id||uid(), rec={id, date:isNew?curDate:e.date, b:bsel, work, t:e.t||Date.now()};
     if(trsel){ rec.tr=trsel; rec.st=stsel; rec.dn=!!(stsel&&dnsel); }
-    if(c.fl){ rec.fl=c.fl; rec.ft=c.ft; } else { rec.f=c.f; rec.flat=c.flat; }
+    if(c.fl){ rec.fl=c.fl; rec.fts=c.fts; } else { rec.f=c.f; rec.flat=c.flat; }
     S.entries[id]=rec;
     if(!save()) return;
     lastPick={b:bsel, fl:c.fl||[], f:c.f||"", tr:trsel};
@@ -964,7 +997,7 @@ function floorModal(b,f){
     ${f.k?"":`<div class="row" style="margin-bottom:12px"><input type="text" id="fmN" class="grow" value="${esc(f.name)}"><button class="btn sec sm" id="fmNS">تغيير الاسم</button></div>`}
     <div class="sect">الشقق (${fl.length}) <small>اضغط على الشقة لتغيير رقمها أو حذفها</small></div>
     <div class="chips" id="fmF" style="margin-bottom:10px">${fl.length?fl.map(x=>`<button data-t="${x.id}">${esc(x.name)}</button>`).join(""):`<span class="muted">ما في شقق بهذا الطابق.</span>`}</div>
-    <div class="row"><input type="text" id="fmA" class="grow" placeholder="مثلاً: 1، 2، 3، 4 أو 301، 302"><button class="btn ok sm" id="fmAB">+ إضافة</button></div>
+    <div class="row"><input type="text" id="fmA" class="grow" placeholder="مثلاً: 1، 2، 3، 4 أو 1-6"><button class="btn ok sm" id="fmAB">+ إضافة</button></div>
     ${isNum&&fl.length?`<div class="sect">نسخ هذه الشقق لطوابق ثانية</div>
       <div class="row"><span class="muted">من الطابق</span><input type="text" id="cpF" inputmode="numeric" value="${f.r+1}" style="width:60px;text-align:center"><span class="muted">إلى</span><input type="text" id="cpT" inputmode="numeric" style="width:60px;text-align:center"><button class="btn sm" id="cpB">نسخ</button></div>
       <label class="row" style="margin-top:8px;font-size:14px"><input type="checkbox" id="cpR" style="width:20px;height:20px" ${looksNum?"checked":""}> ترقيم حسب الطابق (${esc(fl[0].name)} ← ${esc(renum(fl[0].name,f.r,f.r+1))})</label>`:""}
@@ -974,7 +1007,7 @@ function floorModal(b,f){
   $("fmX").onclick=()=>bldModal(b);
   if($("fmNS")) $("fmNS").onclick=()=>{ const nm=nd($("fmN").value).trim(); if(!nm) return;
     if(b.floors.some(x=>x!==f&&fLabel(x)===nm)){ $("fmE").textContent="في طابق ثاني بنفس الاسم"; return; } f.name=nm; again(); };
-  $("fmAB").onclick=()=>{ const names=nd($("fmA").value).split(/[,،;؛\n]+/).map(x=>x.trim()).filter(Boolean); let n=0;
+  $("fmAB").onclick=()=>{ const names=splitFlats($("fmA").value).map(x=>x.trim()).filter(Boolean); let n=0;
     names.forEach(nm=>{ if(!f.flats.some(x=>x.name===nm)){ f.flats.push({id:"x"+uid(),name:nm}); n++; } });
     if(!n){ $("fmE").textContent=names.length?"هذه الشقق موجودة":"اكتب أرقام الشقق مفصولة بفاصلة"; return; } again(); };
   $("fmF").querySelectorAll("button").forEach(x=>x.onclick=()=>flatModal(b,f,f.flats.find(y=>y.id===x.dataset.t)));

@@ -102,7 +102,7 @@
   .flr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;margin-bottom:6px;background:#f3f5f9;border-radius:9px;cursor:pointer}
   .flr small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
   .flr span{color:var(--muted);font-size:20px}
-  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .three{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .three .btn{padding:9px 4px;font-size:13px}
   .bl.off .nm{color:var(--muted);font-weight:400;text-decoration:line-through}
 
@@ -255,7 +255,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "1.1";
+const APP_VERSION = "1.2";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -322,8 +322,8 @@ const bOrder = id => { const i=S.buildings.findIndex(x=>x.id===id); return i<0?9
 
 /* ---------- الطوابق والشقق (تنسجّل من الإعدادات حسب مخطط توزيع الشقق) ----------
    building {id,name,hidden,floors:[{id,k,r,name,flats:[{id,name}]}]}
-   k: bas سرداب / gnd أرضي / num طابق مرقّم / vil فيلا السطح / "" اسم آخر
-   r: ترتيب: السراديب < الأرضي < 1..n < أسماء أخرى < الفيلا
+   k: bas سرداب / gnd أرضي / num طابق مرقّم / vil فيلا السطح / roof السطح / "" اسم آخر
+   r: ترتيب: السراديب < الأرضي < 1..n < أسماء أخرى < الفيلا < السطح
    الشغل: fl = [أرقام الطوابق]، ft = الشقة (بس لما يكون طابق واحد) */
 const natCmp=(a,b)=>String(a).localeCompare(String(b),"en",{numeric:true});
 const bById = id => S.buildings.find(x=>x.id===id);
@@ -335,12 +335,13 @@ function fLabel(f){ if(!f) return "?";
   if(f.k==="gnd") return "الطابق الأرضي";
   if(f.k==="num") return "الطابق "+f.r;
   if(f.k==="vil") return "فيلا السطح";
+  if(f.k==="roof") return "السطح";
   return f.name; }
 function fShort(f){ if(!f) return "?";
   if(f.k==="num") return String(f.r);
   if(f.k==="gnd") return "أرضي";
   return fLabel(f); }
-function floorRank(k,n){ return k==="bas"?-n:k==="gnd"?0:k==="num"?n:k==="vil"?10000:5000; }
+function floorRank(k,n){ return k==="bas"?-n:k==="gnd"?0:k==="num"?n:k==="vil"?10000:k==="roof"?11000:5000; }
 function entFloors(e){
   if(!e.fl||!e.fl.length) return null;
   const b=bById(e.b); return e.fl.map(id=>flById(b,id)).filter(Boolean).sort((x,y)=>x.r-y.r);
@@ -755,7 +756,7 @@ function afterLayout(){ save(); linkOld(); renderSettings(); renderDay(); }
 /* بناية: الاسم + الطوابق */
 function bldModal(b){
   const fs=floorsOf(b), nums=fs.filter(f=>f.k==="num").map(f=>f.r), nB=fs.filter(f=>f.k==="bas").length,
-    hasG=fs.some(f=>f.k==="gnd"), hasV=fs.some(f=>f.k==="vil"), nextN=nums.length?Math.max(...nums)+1:1;
+    hasG=fs.some(f=>f.k==="gnd"), hasV=fs.some(f=>f.k==="vil"), hasR=fs.some(f=>f.k==="roof"), nextN=nums.length?Math.max(...nums)+1:1;
   modal(`<h3>بناية <bdi>${esc(b.name)}</bdi></h3>
     <div class="row" style="margin-bottom:12px"><input type="text" id="bmN" class="grow" value="${esc(b.name)}"><button class="btn sec sm" id="bmNS">تغيير الاسم</button></div>
     <div class="sect">الطوابق (${fs.length}) <small>اضغط على الطابق لتسجيل شققه</small></div>
@@ -766,6 +767,7 @@ function bldModal(b){
       <button class="btn sec sm" id="aB">+ سرداب${nB?" "+(nB+1):""}</button>
       <button class="btn sec sm" id="aG" ${hasG?"disabled":""}>+ طابق أرضي</button>
       <button class="btn sec sm" id="aV" ${hasV?"disabled":""}>+ فيلا السطح</button>
+      <button class="btn sec sm" id="aR" ${hasR?"disabled":""}>+ السطح</button>
     </div>
     <div class="row" style="margin-top:10px"><span class="muted">الطوابق من</span><input type="text" id="aF" inputmode="numeric" value="${nextN}" style="width:64px;text-align:center"><span class="muted">إلى</span><input type="text" id="aT" inputmode="numeric" placeholder="20" style="width:64px;text-align:center"><button class="btn ok sm" id="aN">+ إضافة</button></div>
     <div class="row" style="margin-top:10px"><input type="text" id="aC" class="grow" placeholder="اسم آخر، مثلاً: ميزانين"><button class="btn sec sm" id="aCA">+ إضافة</button></div>
@@ -781,6 +783,7 @@ function bldModal(b){
   $("aB").onclick=()=>{ add("",floorRank("bas",nB+1),"bas"); again(); };
   $("aG").onclick=()=>{ add("",0,"gnd"); again(); };
   $("aV").onclick=()=>{ add("",10000,"vil"); again(); };
+  $("aR").onclick=()=>{ add("",11000,"roof"); again(); };
   $("aN").onclick=()=>{ const a=parseInt(nd($("aF").value)), z=nd($("aT").value).trim()?parseInt(nd($("aT").value)):a;
     if(!(a>=1)||!(z>=a)){ $("aE").textContent="اكتب أرقام طوابق صحيحة، مثلاً من 1 إلى 20"; return; }
     if(z-a>99){ $("aE").textContent="عدد كبير جداً مرة وحدة"; return; }

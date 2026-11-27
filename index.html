@@ -294,7 +294,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "2.1";
+const APP_VERSION = "2.2";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -331,7 +331,7 @@ function load(){
 /* أرقام شقق مفصولة بفواصل أو "و" أو مدى (1-6) */
 function splitFlats(s){
   const out=[];
-  nd(s).replace(/(\d)\s*و\s*(?=\d)/g,"$1,").split(/[,،;؛\n]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>{
+  nd(s).replace(/(\d)\s*و\s*(?=\d)/g,"$1,").split(/[,،٫٬‚，;؛\n]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>{
     const m=x.match(/^(\d+)\s*-\s*(\d+)$/);
     if(m&&+m[2]>=+m[1]&&+m[2]-+m[1]<=50){ for(let k=+m[1];k<=+m[2];k++) out.push(String(k)); } else out.push(x);
   });
@@ -341,7 +341,7 @@ function splitFlats(s){
 function fixJoinedFlats(){
   let ch=false;
   S.buildings.forEach(b=>b.floors.forEach(f=>f.flats.slice().forEach(x=>{
-    const parts=splitFlats(x.name); if(parts.length<2||!/^[\d,،و\s\-]+$/.test(nd(x.name))) return;
+    const parts=splitFlats(x.name); if(parts.length<2||!(/[,،٫٬‚，;؛]/.test(x.name)||/^[\d\sو\-]+$/.test(nd(x.name)))) return;
     const ids=parts.map(nm=>{ let y=f.flats.find(z=>z!==x&&z.name===nm); if(!y){ y={id:"x"+uid(),name:nm}; f.flats.push(y); } return y.id; });
     Object.values(S.entries).forEach(e=>{ const a=e.fts||(e.ft?[e.ft]:[]); if(a.includes(x.id)){ e.fts=[...new Set(a.filter(i=>i!==x.id).concat(ids))]; delete e.ft; } });
     Object.keys(S.manual).forEach(k=>{ const p=k.split("|"); if(p[2]===x.id){ ids.forEach(i=>{ S.manual[p[0]+"|"+p[1]+"|"+i+"|"+p[3]]=S.manual[k]; }); delete S.manual[k]; } });

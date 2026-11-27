@@ -102,6 +102,9 @@
   .flr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;margin-bottom:6px;background:#f3f5f9;border-radius:9px;cursor:pointer}
   .flr small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
   .flr span{color:var(--muted);font-size:20px}
+  .seg{display:flex;background:#e8ecf2;border-radius:10px;padding:3px;margin-bottom:12px}
+  .seg button{flex:1;border:0;background:none;padding:9px;border-radius:8px;font-weight:600;color:var(--muted);cursor:pointer}
+  .seg button.on{background:#fff;color:var(--pri);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .pgh{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .pgh .big{font-size:22px;color:var(--pri)}
   .pbar{height:10px;background:#e8ecf2;border-radius:6px;overflow:hidden;margin-top:6px}
@@ -294,7 +297,7 @@
 
 <script>
 /* app-marker: bw_report_v1 */
-const APP_VERSION = "2.2";
+const APP_VERSION = "2.3";
 const KEY = "bw_data_v1";
 
 if(!window.AndroidBridge && "serviceWorker" in navigator && location.protocol==="https:"){
@@ -490,7 +493,41 @@ function bldProgress(b){
   return {dm, units, per, total:avg(per.map(x=>x.pct))};
 }
 
-let progB=null, progT=null;
+/* ---------- صفحة الشقة: نسبة كل صنف بالشقة ونسبة الشقة الكلية ---------- */
+function unitTotal(dm,b,u,trs){ return avg(trs.map(t=>unitPct(dm,b,u,t))); }
+function renderFlatGrid(b,P,trs){
+  return `<div class="card"><div class="muted">اضغط على الشقة لتشوف نسبة كل صنف فيها</div></div>`+
+    floorsOf(b).slice().reverse().map(f=>{ const us=P.units.filter(u=>u.f===f);
+      return `<div class="card fcard"><div class="pgh"><b>${esc(fLabel(f))}</b></div>
+        <div class="units">${us.map(u=>{ const p=unitTotal(P.dm,b,u,trs);
+          return `<button class="un fu ${pctCls(p)}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${u.x?"شقة "+esc(u.x.name):"الطابق"}</b><span>${pctTxt(p)}</span></button>`; }).join("")}</div></div>`; }).join("");
+}
+function renderFlatPage(b,P,trs,f,x){
+  const u={f,x}, k=uKey(b,f,x), tot=unitTotal(P.dm,b,u,trs);
+  return `<div class="card"><div class="row" style="justify-content:space-between"><button class="btn sec sm" id="fpBack">→ رجوع</button><b><bdi>${esc(b.name)}</bdi></b></div>
+      <div class="pgh" style="margin-top:10px"><b>${esc(fLabel(f))}${x?` · شقة ${esc(x.name)}`:""}</b><b class="big">${pctTxt(tot)}</b></div>${bar(tot)}
+      <div class="muted" style="margin-top:6px">نسبة الشقة الكلية = معدل نسب الأصناف</div>
+      <div class="actions" style="margin-top:10px"><button class="btn sec sm" id="fpPv">🔍 معاينة</button><button class="btn ok sm" id="fpSh">📤 إرسال PDF</button></div></div>`+
+    trs.map(t=>{ const p=unitPct(P.dm,b,u,t);
+      return `<div class="card"><div class="pgh"><b>${esc(t.name)}</b><b>${pctTxt(p)}</b></div>${bar(p)}
+        <div style="margin-top:8px">${t.stages.map(s=>{ const d=P.dm.get(k+"|"+s.id);
+          return `<div class="stg ${d?"on":""}"><span class="ck">${d?"✓":""}</span><div class="grow"><b>${esc(s.name)}</b> <small>(${+s.w||0})</small>
+            <small class="d">${d?(d.manual?"معلّمة باليد":"بالكشف "+dmy(d.date)):"ما خلصت"}</small></div>
+            ${d&&!d.manual?"":`<button class="btn ${d?"sec":"ok"} sm" data-mk="${k}|${s.id}">${d?"إلغاء":"✓ خلصت"}</button>`}</div>`; }).join("")}</div></div>`; }).join("");
+}
+function flatRep(b,P,trs,f,x){
+  const u={f,x}, k=uKey(b,f,x), tot=unitTotal(P.dm,b,u,trs);
+  const el=document.createElement("div"); el.className="rep";
+  el.innerHTML=`<h2>نسبة الإنجاز — بناية <bdi>${esc(b.name)}</bdi> · ${esc(fLabel(f))}${x?` · شقة ${esc(x.name)}`:""}</h2>
+    <div class="sub">${S.project?esc(S.project)+" — ":""}${dayName(today())} ${dmy(today())}</div>
+    <table><thead><tr><th>الصنف</th><th>الإنجاز</th></tr></thead><tbody>${trs.map(t=>{ const p=unitPct(P.dm,b,u,t); return `<tr><td>${esc(t.name)}</td><td class="${pctCls(p)}"><b>${pctTxt(p)}</b></td></tr>`; }).join("")}
+    <tr class="tot"><td>نسبة الشقة الكلية</td><td>${pctTxt(tot)}</td></tr></tbody></table>`+
+    trs.map(t=>`<h4>${esc(t.name)} — ${pctTxt(unitPct(P.dm,b,u,t))}</h4><table><thead><tr><th>المرحلة</th><th style="width:60px">الوزن</th><th style="width:150px">الحالة</th></tr></thead><tbody>${t.stages.map(s=>{ const d=P.dm.get(k+"|"+s.id);
+      return `<tr><td class="w">${esc(s.name)}</td><td>${+s.w||0}</td><td class="${d?"full":"zero"}">${d?"✓ خلصت"+(d.manual?"":" "+dmy(d.date)):"ما خلصت"}</td></tr>`; }).join("")}</tbody></table>`).join("")+
+    `<div class="sign"><div>المشرف</div><div>المهندس</div></div>`;
+  return el;
+}
+let progB=null, progT=null, progMode="trade", progU=null;
 function renderProgress(){
   const box=$("progBox"), vis=S.buildings.filter(b=>!b.hidden);
   if(!vis.some(b=>b.id===progB)) progB=vis[0]&&vis[0].id;
@@ -503,13 +540,29 @@ function renderProgress(){
     hookB(); return;
   }
   const P=bldProgress(b), t=progT&&trById(progT);
+  h+=`<div class="seg"><button data-m="trade" class="${progMode==="trade"?"on":""}">حسب الصنف</button><button data-m="flat" class="${progMode==="flat"?"on":""}">حسب الشقة</button></div>`;
+  if(progMode==="flat"){
+    const f=progU&&flById(b,progU.f), x=f&&progU.x?f.flats.find(y=>y.id===progU.x):null;
+    if(f&&(x||!progU.x)){
+      box.innerHTML=h+renderFlatPage(b,P,trs,f,x); hookB(); hookSeg();
+      $("fpBack").onclick=()=>{ progU=null; renderProgress(); };
+      $("fpPv").onclick=()=>openPreview(flatRep(b,P,trs,f,x),`flat-${b.name}-${fShort(f)}${x?"-"+x.name:""}.pdf`.replace(/[^\w.\-]/g,""));
+      $("fpSh").onclick=()=>sharePdf(null,`flat-${b.name}-${fShort(f)}${x?"-"+x.name:""}.pdf`.replace(/[^\w.\-]/g,""),flatRep(b,P,trs,f,x));
+      box.querySelectorAll("[data-mk]").forEach(el=>el.onclick=()=>{ const kk=el.dataset.mk; if(S.manual[kk]) delete S.manual[kk]; else S.manual[kk]=today(); save(); renderProgress(); });
+      return;
+    }
+    progU=null;
+    box.innerHTML=h+renderFlatGrid(b,P,trs); hookB(); hookSeg();
+    box.querySelectorAll(".fu").forEach(el=>el.onclick=()=>{ progU={f:el.dataset.f,x:el.dataset.x}; renderProgress(); window.scrollTo(0,0); });
+    return;
+  }
   if(!t){
     h+=`<div class="card"><div class="pgh"><b>بناية <bdi>${esc(b.name)}</bdi> — الإنجاز الكلي</b><b class="big">${pctTxt(P.total)}</b></div>${bar(P.total)}
       <div class="muted" style="margin-top:6px">${units.length} شقة/وحدة · ${trs.length} أصناف</div>
       <div class="actions" style="margin-top:10px"><button class="btn sec sm" id="pgPv">🔍 معاينة</button><button class="btn ok sm" id="pgSh">📤 إرسال PDF</button></div></div>`+
       P.per.map(x=>`<div class="card tcard" data-t="${x.t.id}"><div class="pgh"><b>${esc(x.t.name)}</b><b>${pctTxt(x.pct)}</b></div>${bar(x.pct)}
         <div class="muted" style="margin-top:6px">خلصت بـ ${x.full} من ${units.length} · اضغط للتفاصيل</div></div>`).join("");
-    box.innerHTML=h; hookB();
+    box.innerHTML=h; hookB(); hookSeg();
     box.querySelectorAll(".tcard").forEach(c=>c.onclick=()=>{ progT=c.dataset.t; renderProgress(); window.scrollTo(0,0); });
     $("pgPv").onclick=()=>openPreview(progRep(b,P),progName(b));
     $("pgSh").onclick=()=>sharePdf(null,progName(b),progRep(b,P));
@@ -522,10 +575,11 @@ function renderProgress(){
   h+=floorsOf(b).slice().reverse().map(f=>{ const us=units.filter(u=>u.f===f), ps=us.map(u=>unitPct(P.dm,b,u,t));
     return `<div class="card fcard"><div class="pgh"><b>${esc(fLabel(f))}</b><span class="pc ${pctCls(avg(ps))}">${pctTxt(avg(ps))}</span></div>
       <div class="units">${us.map((u,i)=>`<button class="un ${pctCls(ps[i])}" data-f="${f.id}" data-x="${u.x?u.x.id:""}"><b>${u.x?esc(u.x.name):"الطابق"}</b><span>${pctTxt(ps[i])}</span></button>`).join("")}</div></div>`; }).join("");
-  box.innerHTML=h; hookB();
+  box.innerHTML=h; hookB(); hookSeg();
   $("pgBack").onclick=()=>{ progT=null; renderProgress(); };
   box.querySelectorAll(".un").forEach(el=>el.onclick=()=>{ const f=flById(b,el.dataset.f); unitModal(b,f,el.dataset.x?f.flats.find(y=>y.id===el.dataset.x):null,t); });
-  function hookB(){ box.querySelectorAll("#pgB button").forEach(el=>el.onclick=()=>{ progB=el.dataset.id; renderProgress(); }); }
+  function hookB(){ box.querySelectorAll("#pgB button").forEach(el=>el.onclick=()=>{ progB=el.dataset.id; progT=null; progU=null; renderProgress(); }); }
+  function hookSeg(){ box.querySelectorAll(".seg button").forEach(el=>el.onclick=()=>{ progMode=el.dataset.m; progT=null; progU=null; renderProgress(); }); }
 }
 const bar = p => `<div class="pbar"><i class="${pctCls(p)}" style="width:${Math.min(100,p)}%"></i></div>`;
 function unitModal(b,f,x,t){
@@ -566,7 +620,7 @@ document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
   ["day","progress","reports","settings"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==tab));
   $("fabAdd").classList.toggle("hidden",tab!=="day");
   if(tab==="reports") renderReport();
-  if(tab==="progress"){ progT=null; renderProgress(); }
+  if(tab==="progress"){ progT=null; progU=null; renderProgress(); }
   if(tab==="settings") renderSettings();
   window.scrollTo(0,0);
 });
